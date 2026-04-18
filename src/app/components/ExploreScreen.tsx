@@ -77,6 +77,16 @@ function formatDateTimeLabel(iso?: string) {
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 
+function normalizeId(v?: string | null) {
+  return (v ?? "").trim();
+}
+
+function isOwnDailyPost(post: DailyBitePost, userId?: string | null) {
+  const postOwner = normalizeId(post.authorClerkId);
+  const me = normalizeId(userId);
+  return Boolean(postOwner && me && postOwner === me);
+}
+
 export function ExploreScreen({
   initialCity = "",
   initialTaste = null,
@@ -127,7 +137,17 @@ export function ExploreScreen({
       byId.set(p.id, mergeAvatar(p));
     }
     for (const p of localDailyPosts) {
-      if (!byId.has(p.id)) byId.set(p.id, mergeAvatar(p));
+      const existing = byId.get(p.id);
+      if (!existing) {
+        byId.set(p.id, mergeAvatar(p));
+        continue;
+      }
+      byId.set(p.id, mergeAvatar({
+        ...existing,
+        authorClerkId: normalizeId(existing.authorClerkId) || p.authorClerkId,
+        authorName: existing.authorName || p.authorName,
+        authorBio: existing.authorBio || p.authorBio,
+      }));
     }
     const list = [...byId.values()];
     list.sort((a, b) => {
@@ -137,6 +157,19 @@ export function ExploreScreen({
     });
     return list;
   }, [remoteDailyPosts, localDailyPosts, avatarMapTick]);
+
+  const myOwnedDailyPostIds = useMemo(() => {
+    const uid = normalizeId(user?.id);
+    if (!uid) return new Set<string>();
+    const out = new Set<string>();
+    for (const p of mergedDailyPosts) {
+      if (isOwnDailyPost(p, uid)) out.add(p.id);
+    }
+    for (const p of localDailyPosts) {
+      if (normalizeId(p.authorClerkId) === uid) out.add(p.id);
+    }
+    return out;
+  }, [localDailyPosts, mergedDailyPosts, user?.id]);
 
   const activityBell = (
     <button
@@ -536,7 +569,7 @@ export function ExploreScreen({
   const handleDeleteDailyPost = async (postId: string) => {
     if (!user?.id) return;
     const target = mergedDailyPosts.find((p) => p.id === postId);
-    if (!target || target.authorClerkId !== user.id) return;
+    if (!target || !myOwnedDailyPostIds.has(postId)) return;
     if (!window.confirm("Delete this daily bite?")) return;
     try {
       deleteLocalDailyBite(postId);
@@ -553,7 +586,7 @@ export function ExploreScreen({
   const handleEditDailyPost = async (postId: string) => {
     if (!user?.id) return;
     const target = mergedDailyPosts.find((p) => p.id === postId);
-    if (!target || target.authorClerkId !== user.id) return;
+    if (!target || !myOwnedDailyPostIds.has(postId)) return;
     const nextText = window.prompt("Edit your daily bite text", target.text);
     if (nextText == null) return;
     const trimmed = nextText.trim();
@@ -635,7 +668,8 @@ export function ExploreScreen({
                 <DailyBiteCard
                   post={selectedDailyPost}
                   detail
-                  canManage={Boolean(user?.id && selectedDailyPost.authorClerkId === user.id)}
+                  canManage={myOwnedDailyPostIds.has(selectedDailyPost.id)}
+                  canSayHi={!myOwnedDailyPostIds.has(selectedDailyPost.id)}
                   liked={Boolean(likedPosts[selectedDailyPost.id])}
                   likeCount={likeCounts[selectedDailyPost.id] ?? selectedDailyPost.likeCount ?? 0}
                   commentCount={commentCounts[selectedDailyPost.id] ?? selectedDailyPost.commentCount ?? 0}
@@ -768,6 +802,8 @@ export function ExploreScreen({
                 >
                   <DailyBiteCard
                     post={post}
+                    canManage={myOwnedDailyPostIds.has(post.id)}
+                    canSayHi={!myOwnedDailyPostIds.has(post.id)}
                     liked={Boolean(likedPosts[post.id])}
                     likeCount={likeCounts[post.id] ?? post.likeCount ?? 0}
                     commentCount={commentCounts[post.id] ?? post.commentCount ?? 0}
@@ -952,6 +988,7 @@ function DailyBiteCard({
   post,
   detail = false,
   canManage = false,
+  canSayHi = true,
   liked = false,
   likeCount = 0,
   commentCount: commentCountProp,
@@ -964,6 +1001,7 @@ function DailyBiteCard({
   post: DailyBitePost;
   detail?: boolean;
   canManage?: boolean;
+  canSayHi?: boolean;
   liked?: boolean;
   likeCount?: number;
   commentCount?: number;
@@ -989,16 +1027,18 @@ function DailyBiteCard({
           <div>
             <div className="flex items-center gap-2">
               <div className="text-[14px] font-semibold text-[#A0522D]">{post.authorName}</div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSayHiHost?.({ hostId: normalizedHostId, hostName: post.authorName });
-                }}
-                className="rounded-full border border-[#A0522D]/45 bg-white/75 px-2.5 py-0.5 text-[11px] font-semibold lowercase tracking-[0.01em] text-[#A0522D] hover:bg-[#A0522D]/5"
-              >
-                {t("explore.sayHi")}
-              </button>
+              {canSayHi ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSayHiHost?.({ hostId: normalizedHostId, hostName: post.authorName });
+                  }}
+                  className="rounded-full border border-[#A0522D]/45 bg-white/75 px-2.5 py-0.5 text-[11px] font-semibold lowercase tracking-[0.01em] text-[#A0522D] hover:bg-[#A0522D]/5"
+                >
+                  {t("explore.sayHi")}
+                </button>
+              ) : null}
             </div>
             <div className="mt-1 text-[12px] text-[#A0522D]/60">
               {post.city} · {formatDateTimeLabel(post.createdAtIso) || post.createdLabel}
@@ -1039,7 +1079,7 @@ function DailyBiteCard({
             <MessageSquare className="h-3.5 w-3.5" /> {commentCount}
           </span>
         </div>
-        {detail && canManage ? (
+        {canManage ? (
           <div className="flex items-center gap-2">
             <button
               type="button"

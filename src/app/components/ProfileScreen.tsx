@@ -155,10 +155,14 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
 
     let cancelled = false;
     const sync = () => {
-      const mine = getLocalDailyBites()
-        .filter((b) => b.authorClerkId === uid)
-        .map((b) => toDailyBitePost(b));
-      setMyDailyBites(mine);
+      try {
+        const mine = getLocalDailyBites()
+          .filter((b) => b.authorClerkId === uid)
+          .map((b) => toDailyBitePost(b));
+        setMyDailyBites(mine);
+      } catch {
+        setMyDailyBites([]);
+      }
     };
     sync();
     const unsub = subscribeLocalDailyBitesSync(sync);
@@ -391,16 +395,8 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
             photos: stored.photos,
           });
         } catch (err) {
-          const msg =
-            err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
-              ? String((err as { message: string }).message)
-              : "";
-          if (msg.includes("column") || msg.includes("schema")) {
-            throw new Error(
-              "Server profile storage is not set up yet. Ask the team to run the Supabase migration for extended profile fields.",
-            );
-          }
-          throw err instanceof Error ? err : new Error("Could not sync profile to the server.");
+          // Local save already succeeded. Keep UX unblocked even if server sync fails.
+          console.warn("saveExtendedProfile failed; keeping local profile", err);
         }
       }
     }
