@@ -1,0 +1,42 @@
+{
+  "name": "in-bite",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check:env": "node ./scripts/check-env.mjs"
+  },
+  "dependencies": {
+    "@clerk/clerk-react": "^5.61.5",
+    "@stripe/react-stripe-js": "^6.2.0",
+    "@stripe/stripe-js": "^9.2.0",
+    "@supabase/supabase-js": "^2.103.2",
+    "firebase": "^12.12.0",
+    "framer-motion": "^11.3.31",
+    "i18n-iso-countries": "^7.14.0",
+    "i18next": "^24.2.0",
+    "i18next-browser-languagedetector": "^8.0.2",
+    "lucide-react": "^1.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.4.0",
+    "react-router-dom": "^7.14.1",
+    "react-select": "^5.10.2",
+    "sonner": "^2.0.7",
+    "stripe": "^22.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "country-state-city": "^3.2.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

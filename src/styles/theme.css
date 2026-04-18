@@ -1,0 +1,34 @@
+:root {
+  color-scheme: light;
+  --color-bg: #FDFAF5;
+  --color-terra: #A0522D;
+  --color-text-primary: #2C1A0E;
+  --color-text-muted: #B89A80;
+  --color-border: #EDD5C0;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Korean mode: keep readable Korean sans-serif globally. */
+body.lang-ko,
+body.lang-ko * {
+  font-family: "Noto Sans KR", sans-serif !important;
+}
+
+/* Hide scrollbars globally for horizontal overflows */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

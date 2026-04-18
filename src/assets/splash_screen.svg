@@ -1,0 +1,16 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#2A1A12"/>
+  <g transform="translate(540,180) scale(8.5)">
+    <circle cx="24" cy="24" r="20" fill="#D4B896" />
+    <circle cx="37.5" cy="10.5" r="4.2" fill="#FDFAF5" />
+    <circle cx="42" cy="16.5" r="3.6" fill="#FDFAF5" />
+    <circle cx="40" cy="24" r="3.8" fill="#FDFAF5" />
+    <circle cx="15" cy="16" r="2" fill="#6B4423" />
+    <circle cx="25" cy="14" r="2" fill="#6B4423" />
+    <circle cx="13" cy="26" r="2" fill="#6B4423" />
+    <circle cx="22" cy="23" r="2" fill="#6B4423" />
+    <circle cx="28" cy="30" r="2" fill="#6B4423" />
+    <circle cx="18" cy="33" r="2" fill="#6B4423" />
+  </g>
+  <text x="640" y="590" text-anchor="middle" fill="#E7D1BD" font-size="56" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="600">InBite</text>
+</svg>
