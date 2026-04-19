@@ -60,6 +60,42 @@
     "alreadyHaveAccountLogIn": "I already have an account! Log in",
     "alreadyHaveAccountQuestionLogIn": "Already have an account? Log in"
   },
+  "welcomeModal": {
+    "title": "Welcome to the In-Bite Family!",
+    "body": "Are you ready to share a piece of your daily life? We tucked <bite>5 BITE</bite> of <energy>energy to open your journey</energy> into a welcome cookie for your first step.",
+    "browseLimited": "Browse around (limited features)",
+    "dontShowAgain": "Don't show again",
+    "toggleDontShowAria": "Toggle: don't show this welcome again",
+    "hideNow": "Hide this welcome modal now",
+    "closeAria": "Close welcome modal",
+    "nameOptional": "Name (optional)",
+    "email": "Email",
+    "password": "Password",
+    "passwordConfirm": "Confirm password",
+    "passwordMismatch": "Passwords do not match. Please check and try again.",
+    "pleaseWait": "Please wait…",
+    "createAccount": "Create account",
+    "backToOptions": "Back to options",
+    "orContinueWith": "Or continue with",
+    "continueKakao": "Continue with Kakao",
+    "continueNaver": "Continue with Naver",
+    "continueGoogle": "Continue with Google",
+    "oauthHelper": "Use Kakao, Naver, or Google to continue.",
+    "authLoading": "Authentication is still loading. Please try again in a moment.",
+    "socialLoginFailed": "Social login failed: {{reason}}",
+    "verifyEmail": "Check your email inbox to verify your account, then continue.",
+    "completeSignIn": "Please complete the required sign-in step.",
+    "authFailed": "Authentication failed.",
+    "noClerkBody": "Social and email onboarding is ready. Add your Clerk publishable key in the environment to enable sign-in.",
+    "noClerkBrowse": "Browse around"
+  },
+  "postSignupWelcome": {
+    "title": "Welcome to the In-Bite Family!",
+    "body": "Are you ready to share a piece of your daily life? To celebrate your first step, we've sent you a welcome cookie with <bite>5 BITE</bite> of <energy>energy to open your journey</energy> in your account.",
+    "startExploring": "Start exploring",
+    "footer": "Appssal, who loves the forests of Brisbane and the prose of Hermann Hesse, is waiting for you.",
+    "closeAria": "Close welcome"
+  },
   "activity": {
     "title": "Activity",
     "closeAria": "Close activity",
@@ -230,7 +266,9 @@
     "hobbies": "Interests",
     "bio": "Bio",
     "closeAria": "Close profile preview",
-    "viewProfileAria": "View {{name}}'s profile"
+    "viewProfileAria": "View {{name}}'s profile",
+    "fieldEmpty": "Not set",
+    "sayHiAria": "Say hi to {{name}}"
   },
   "locationPicker": {
     "meetingTitle": "Location *",

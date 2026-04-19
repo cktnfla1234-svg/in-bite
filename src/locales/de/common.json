@@ -60,6 +60,42 @@
     "alreadyHaveAccountLogIn": "Ich habe schon ein Konto! Anmelden",
     "alreadyHaveAccountQuestionLogIn": "Schon ein Konto? Anmelden"
   },
+  "welcomeModal": {
+    "title": "Willkommen in der In-Bite-Familie!",
+    "body": "Bist du bereit, ein Stück deines Alltags zu teilen? In einer Willkommens-Cookie haben wir <bite>5 BITE</bite> <energy>Energie für den Start deiner Reise</energy> für deinen ersten Schritt bereitgelegt.",
+    "browseLimited": "Stöbern (eingeschränkte Funktionen)",
+    "dontShowAgain": "Nicht mehr anzeigen",
+    "toggleDontShowAria": "Umschalten: dieses Willkommen nicht mehr anzeigen",
+    "hideNow": "Willkommensfenster jetzt schließen",
+    "closeAria": "Willkommen schließen",
+    "nameOptional": "Name (optional)",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "passwordConfirm": "Passwort bestätigen",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein. Bitte erneut prüfen.",
+    "pleaseWait": "Bitte warten…",
+    "createAccount": "Konto erstellen",
+    "backToOptions": "Zurück zu den Optionen",
+    "orContinueWith": "Oder weiter mit",
+    "continueKakao": "Mit Kakao fortfahren",
+    "continueNaver": "Mit Naver fortfahren",
+    "continueGoogle": "Mit Google fortfahren",
+    "oauthHelper": "Weiter mit Kakao, Naver oder Google.",
+    "authLoading": "Die Anmeldung wird noch geladen. Bitte versuche es gleich erneut.",
+    "socialLoginFailed": "Social-Login fehlgeschlagen: {{reason}}",
+    "verifyEmail": "Prüfe dein E-Mail-Postfach, bestätige dein Konto und fahre dann fort.",
+    "completeSignIn": "Bitte schließe den erforderlichen Anmeldeschritt ab.",
+    "authFailed": "Anmeldung fehlgeschlagen.",
+    "noClerkBody": "Social- und E-Mail-Onboarding ist vorbereitet. Lege den Clerk-Publishable-Key in den Umgebungsvariablen an, um die Anmeldung zu aktivieren.",
+    "noClerkBrowse": "Stöbern"
+  },
+  "postSignupWelcome": {
+    "title": "Willkommen in der In-Bite-Familie!",
+    "body": "Bist du bereit, ein Stück deines Alltags zu teilen? Zu deinem ersten Schritt haben wir dir eine Willkommens-Cookie mit <bite>5 BITE</bite> <energy>Energie für den Start deiner Reise</energy> auf dein Konto geschickt.",
+    "startExploring": "Entdecken starten",
+    "footer": "Appssal — die die Wälder von Brisbane und Hermann Hesses Prosa liebt — wartet auf dich.",
+    "closeAria": "Willkommen schließen"
+  },
   "activity": {
     "title": "Aktivität",
     "closeAria": "Aktivität schließen",
@@ -230,7 +266,9 @@
     "hobbies": "Interessen",
     "bio": "Bio",
     "closeAria": "Profilvorschau schließen",
-    "viewProfileAria": "Profil von {{name}} anzeigen"
+    "viewProfileAria": "Profil von {{name}} anzeigen",
+    "fieldEmpty": "Nicht angegeben",
+    "sayHiAria": "{{name}} begrüßen"
   },
   "locationPicker": {
     "meetingTitle": "Ort *",

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { Trans, useTranslation } from "react-i18next";
 import { CookieLogo } from "./ui/CookieLogo";
 
 type PostSignupWelcomeModalProps = {
@@ -12,6 +13,8 @@ export function PostSignupWelcomeModal({
   onClose,
   onStartExploring,
 }: PostSignupWelcomeModalProps) {
+  const { t } = useTranslation("common");
+
   return (
     <AnimatePresence>
       {open ? (
@@ -35,7 +38,7 @@ export function PostSignupWelcomeModal({
           >
             <button
               type="button"
-              aria-label="Close welcome"
+              aria-label={t("postSignupWelcome.closeAria")}
               onClick={onClose}
               className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-[#A0522D]"
             >
@@ -56,14 +59,18 @@ export function PostSignupWelcomeModal({
                 fontFamily: "'Patrick Hand', cursive",
               }}
             >
-              Welcome to the In-Bite Family!
+              {t("postSignupWelcome.title")}
             </h2>
 
             <p className="mt-5 text-center text-sm leading-6 text-[#6F4C32]">
-              Are you ready to share a piece of your daily life? To celebrate your first step,
-              we&apos;ve sent you a welcome cookie with <b>5 BITE</b> of{" "}
-              <b>energy to open your journey</b>{" "}
-              into your account.
+              <Trans
+                ns="common"
+                i18nKey="postSignupWelcome.body"
+                components={{
+                  bite: <b />,
+                  energy: <b />,
+                }}
+              />
             </p>
 
             <div className="mt-6">
@@ -72,14 +79,11 @@ export function PostSignupWelcomeModal({
                 onClick={onStartExploring}
                 className="h-12 w-full rounded-2xl bg-[#A0522D] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(160,82,45,0.25)]"
               >
-                Start Exploring
+                {t("postSignupWelcome.startExploring")}
               </button>
             </div>
 
-            <p className="mt-5 text-center text-[11px] leading-5 text-[#A0522D]/70">
-              Appssal, who loves the forests of Brisbane and the prose of Hermann Hesse, is waiting
-              for you.
-            </p>
+            <p className="mt-5 text-center text-[11px] leading-5 text-[#A0522D]/70">{t("postSignupWelcome.footer")}</p>
           </motion.div>
         </motion.div>
       ) : null}

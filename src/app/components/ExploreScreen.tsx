@@ -9,6 +9,7 @@ import { ExperienceDetail } from "./ExperienceDetail";
 import { useUserProfilePreview } from "@/app/context/UserProfilePreviewContext";
 import { dailyBites, experiences, type DailyBitePost, type Experience, type IncludedItem } from "@/data/experiences";
 import {
+  deleteLocalInvite,
   getLocalInvites,
   upsertLocalInvite,
   subscribeLocalInvitesSync,
@@ -47,7 +48,7 @@ import {
   setCommentLikeRemote,
 } from "@/lib/dailyBiteCommentLikes";
 import { useDisplayPostBody } from "@/lib/contentTranslation";
-import { listOwnInvites, type InviteRow } from "@/lib/invites";
+import { fetchPublicInvites, type InviteRow } from "@/lib/invites";
 import { isSurimChaDemoUser, upsertSurimChaDemoInvites } from "@/lib/surimChaDemoInvites";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
@@ -56,7 +57,7 @@ import {
   insertDailyBiteComment,
   type RemoteDailyBiteCommentRow,
 } from "@/lib/dailyBiteCommentsRemote";
-import { fetchPublicProfileByClerkId } from "@/lib/publicProfile";
+import { fetchPublicProfileByClerkId, prefetchPublicProfileAvatars } from "@/lib/publicProfile";
 import { isSelectableCurrency } from "@/lib/currency";
 
 type ExploreScreenProps = {
@@ -155,9 +156,14 @@ export function ExploreScreen({
 
   const mergedDailyPosts = useMemo(() => {
     const mergeAvatar = (post: DailyBitePost): DailyBitePost => {
-      const o = post.authorClerkId ? getProfileAvatar(post.authorClerkId) : undefined;
-      if (!o) return post;
-      return { ...post, authorImageUrl: o };
+      const id = post.authorClerkId != null ? String(post.authorClerkId).trim() : "";
+      if (!id) return post;
+      const cached = getProfileAvatar(id)?.trim();
+      const server = post.authorImageUrl?.trim();
+      const next = cached || server;
+      if (!next) return post;
+      if (post.authorImageUrl === next) return post;
+      return { ...post, authorImageUrl: next };
     };
     const byId = new Map<string, DailyBitePost>();
     for (const p of remoteDailyPosts) {
@@ -269,29 +275,33 @@ export function ExploreScreen({
     return subscribeLocalInvitesSync(syncLocalInvites);
   }, [user?.id, avatarMapTick]);
 
+  /** Sync invite cards from Supabase (all hosts). Uses anon client like Daily Bites — needs public SELECT RLS on `invites`. */
   useEffect(() => {
-    if (!user?.id) return;
     let alive = true;
     let channelCleanup: (() => void) | undefined;
     void (async () => {
       try {
-        const token = await getToken({ template: "supabase" });
-        if (!token || !alive) return;
-        const rows = await listOwnInvites(token);
+        const rows = await fetchPublicInvites(160);
+        if (!alive) return;
         for (const row of rows) {
           upsertLocalInvite(mapInviteRowToLocalInvite(row));
         }
-        const supabase = getSupabaseClient(token);
-        if (!supabase) return;
+        const supabase = getSupabaseClient();
+        if (!supabase || !alive) return;
         const channel = supabase
-          .channel(`invites-live-${user.id}`)
+          .channel("invites-public-feed")
           .on(
             "postgres_changes",
-            { event: "*", schema: "public", table: "invites", filter: `clerk_id=eq.${user.id}` },
+            { event: "*", schema: "public", table: "invites" },
             (payload) => {
-              if (payload.eventType === "DELETE") return;
-              const row = payload.new as InviteRow;
-              upsertLocalInvite(mapInviteRowToLocalInvite(row));
+              if (payload.eventType === "DELETE") {
+                const oldRow = payload.old as { id?: string } | null;
+                if (oldRow?.id) deleteLocalInvite(oldRow.id);
+                return;
+              }
+              const row = payload.new as Partial<InviteRow> | null;
+              if (!row?.id) return;
+              upsertLocalInvite(mapInviteRowToLocalInvite(row as InviteRow));
             },
           )
           .subscribe();
@@ -306,7 +316,7 @@ export function ExploreScreen({
       alive = false;
       channelCleanup?.();
     };
-  }, [getToken, user?.id]);
+  }, []);
 
   useEffect(() => {
     const syncLocalDailyBites = () => {
@@ -336,6 +346,35 @@ export function ExploreScreen({
       cancelled = true;
     };
   }, [section]);
+
+  /** Refresh author avatars from `public_profile_for_clerk` so feed matches profile edits without opening the modal. */
+  useEffect(() => {
+    if (section !== "dailyBites") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token || cancelled) return;
+        const ids = new Set<string>();
+        for (const p of remoteDailyPosts) {
+          const id = normalizeId(p.authorClerkId != null ? String(p.authorClerkId) : "");
+          if (id.startsWith("user_")) ids.add(id);
+        }
+        for (const p of localDailyPosts) {
+          const id = normalizeId(p.authorClerkId != null ? String(p.authorClerkId) : "");
+          if (id.startsWith("user_")) ids.add(id);
+        }
+        if (!ids.size) return;
+        await prefetchPublicProfileAvatars([...ids], token);
+        if (!cancelled) setAvatarMapTick((v) => v + 1);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [section, remoteDailyPosts, localDailyPosts, getToken]);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -1258,6 +1297,8 @@ function DailyBiteCard({
   const displayBody = useDisplayPostBody(post.id, post.text);
   const commentCount = commentCountProp ?? post.commentCount ?? 0;
   const clerkHostId = normalizeId(post.authorClerkId != null ? String(post.authorClerkId) : "");
+  const authorAvatarOverride = clerkHostId ? getProfileAvatar(clerkHostId) : undefined;
+  const displayAuthorAvatar = authorAvatarOverride || post.authorImageUrl;
   const canOpenAuthorProfile = clerkHostId.startsWith("user_");
   const normalizedHostId = clerkHostId
     ? `host:${clerkHostId}`
@@ -1286,14 +1327,14 @@ function DailyBiteCard({
               openUserProfile({
                 clerkId: clerkHostId,
                 fallbackDisplayName: post.authorName,
-                fallbackImageUrl: post.authorImageUrl,
+                fallbackImageUrl: displayAuthorAvatar,
               });
             }}
             disabled={!canOpenAuthorProfile}
             aria-label={canOpenAuthorProfile ? t("profilePreview.viewProfileAria", { name: post.authorName }) : undefined}
           >
-            {post.authorImageUrl ? (
-              <img src={post.authorImageUrl} alt="" className="h-full w-full object-cover" />
+            {displayAuthorAvatar ? (
+              <img src={displayAuthorAvatar} alt="" className="h-full w-full object-cover" />
             ) : null}
           </button>
           <div className="min-w-0 flex-1">
@@ -1307,7 +1348,7 @@ function DailyBiteCard({
                   openUserProfile({
                     clerkId: clerkHostId,
                     fallbackDisplayName: post.authorName,
-                    fallbackImageUrl: post.authorImageUrl,
+                    fallbackImageUrl: displayAuthorAvatar,
                   });
                 }}
                 className={`text-left text-[14px] font-semibold text-[#A0522D] disabled:cursor-default ${

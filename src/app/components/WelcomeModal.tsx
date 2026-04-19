@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useClerk, useSignIn, useSignUp } from "@clerk/clerk-react";
 import { CookieLogo } from "./ui/CookieLogo";
 import { GoogleLogo, KakaoLogo, NaverLogo } from "./ui/SocialLogos";
@@ -51,12 +51,17 @@ function WelcomeAuthContent({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  const canSubmit = email.trim().length > 0 && password.trim().length > 0;
+  const passwordsMatch = password === passwordConfirm;
+  const canSubmit =
+    email.trim().length > 0 &&
+    password.trim().length > 0 &&
+    (mode !== "sign-up" || (passwordConfirm.trim().length > 0 && passwordsMatch));
 
   const closeWithPreference = (cb?: () => void) => {
     if (dontShowAgain) {
@@ -67,7 +72,7 @@ function WelcomeAuthContent({
 
   const handleSocial = async (strategy: SocialStrategy) => {
     if (!signInLoaded || !signIn) {
-      setError("Auth is still loading. Please try again in a moment.");
+      setError(t("welcomeModal.authLoading"));
       return;
     }
     setError(null);
@@ -81,8 +86,8 @@ function WelcomeAuthContent({
     } catch (primaryErr) {
       const fallback = OAUTH_FALLBACK_STRATEGY[strategy as keyof typeof OAUTH_FALLBACK_STRATEGY];
       if (!fallback) {
-        const reason = primaryErr instanceof Error ? primaryErr.message : "Social login failed.";
-        setError(`Social login failed: ${reason}`);
+        const reason = primaryErr instanceof Error ? primaryErr.message : t("welcomeModal.authFailed");
+        setError(t("welcomeModal.socialLoginFailed", { reason }));
         return;
       }
       try {
@@ -97,8 +102,8 @@ function WelcomeAuthContent({
             ? fallbackErr.message
             : primaryErr instanceof Error
               ? primaryErr.message
-              : "Social login failed.";
-        setError(`Social login failed: ${reason}`);
+              : t("welcomeModal.authFailed");
+        setError(t("welcomeModal.socialLoginFailed", { reason }));
       }
     }
   };
@@ -122,7 +127,7 @@ function WelcomeAuthContent({
           closeWithPreference(onAuthenticated);
           return;
         }
-        setNotice("Check your email inbox to verify your account, then continue.");
+        setNotice(t("welcomeModal.verifyEmail"));
         return;
       }
 
@@ -135,10 +140,10 @@ function WelcomeAuthContent({
         await setActive({ session: result.createdSessionId });
         closeWithPreference(onAuthenticated);
       } else {
-        setNotice("Please complete the required sign-in step.");
+        setNotice(t("welcomeModal.completeSignIn"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed.");
+      setError(err instanceof Error ? err.message : t("welcomeModal.authFailed"));
     } finally {
       setPending(false);
     }
@@ -152,14 +157,18 @@ function WelcomeAuthContent({
         className="mt-8 text-center font-semibold"
         style={{ color: "#5A3828", fontSize: "22px", fontFamily: "'Patrick Hand', cursive" }}
       >
-        Welcome to the In-Bite Family!
+        {t("welcomeModal.title")}
       </h2>
 
       <p className="mt-3 text-center text-sm leading-6 text-[#2A2420]/88">
-        Are you ready to share a piece of your daily life? We tucked{" "}
-        <span className="font-semibold">5 BITE</span> of{" "}
-        <span className="font-semibold">energy to open your journey</span>{" "}
-        into a welcome cookie for your first step.
+        <Trans
+          ns="common"
+          i18nKey="welcomeModal.body"
+          components={{
+            bite: <span className="font-semibold" />,
+            energy: <span className="font-semibold" />,
+          }}
+        />
       </p>
 
       {!isAuthView ? (
@@ -169,18 +178,20 @@ function WelcomeAuthContent({
             onClick={() => {
               setIsAuthView(true);
               setMode("default");
+              setPasswordConfirm("");
               setError(null);
               setNotice(null);
             }}
             className="h-12 w-full rounded-2xl bg-[#A0522D] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(160,82,45,0.32)]"
           >
-            Sign up &amp; receive journey energy
+            {t("auth.welcomeSignUpCta")}
           </button>
           <button
             type="button"
             onClick={() => {
               setIsAuthView(true);
               setMode("log-in");
+              setPasswordConfirm("");
               setError(null);
               setNotice(null);
             }}
@@ -196,7 +207,7 @@ function WelcomeAuthContent({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Name (optional)"
+              placeholder={t("welcomeModal.nameOptional")}
               className="h-11 w-full rounded-2xl border border-[#BFA894] bg-white px-4 text-sm text-[#2A2420] outline-none focus:border-[#8F6A52]"
             />
           ) : null}
@@ -204,16 +215,28 @@ function WelcomeAuthContent({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t("welcomeModal.email")}
             className="h-11 w-full rounded-2xl border border-[#BFA894] bg-white px-4 text-sm text-[#2A2420] outline-none focus:border-[#8F6A52]"
           />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t("welcomeModal.password")}
             className="h-11 w-full rounded-2xl border border-[#BFA894] bg-white px-4 text-sm text-[#2A2420] outline-none focus:border-[#8F6A52]"
           />
+          {mode === "sign-up" ? (
+            <input
+              type="password"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              placeholder={t("welcomeModal.passwordConfirm")}
+              className="h-11 w-full rounded-2xl border border-[#BFA894] bg-white px-4 text-sm text-[#2A2420] outline-none focus:border-[#8F6A52]"
+            />
+          ) : null}
+          {mode === "sign-up" && passwordConfirm.length > 0 && !passwordsMatch ? (
+            <p className="text-center text-[11px] text-red-600">{t("welcomeModal.passwordMismatch")}</p>
+          ) : null}
           <button
             type="button"
             disabled={!canSubmit || pending}
@@ -221,9 +244,9 @@ function WelcomeAuthContent({
             className="mt-1 h-12 w-full rounded-2xl bg-[#A0522D] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(160,82,45,0.32)] disabled:opacity-55"
           >
             {pending
-              ? "Please wait..."
+              ? t("welcomeModal.pleaseWait")
               : mode === "sign-up"
-                ? "Create Account"
+                ? t("welcomeModal.createAccount")
                 : t("auth.logInWithEmail")}
           </button>
           <button
@@ -231,12 +254,13 @@ function WelcomeAuthContent({
             onClick={() => {
               setIsAuthView(true);
               setMode("default");
+              setPasswordConfirm("");
               setError(null);
               setNotice(null);
             }}
             className="w-full pt-1 text-center text-[11px] text-[#A98E79] underline-offset-2 hover:underline"
           >
-            Back to options
+            {t("welcomeModal.backToOptions")}
           </button>
         </div>
       ) : (
@@ -245,6 +269,7 @@ function WelcomeAuthContent({
             type="button"
             onClick={() => {
               setMode("sign-up");
+              setPasswordConfirm("");
               setError(null);
               setNotice(null);
             }}
@@ -257,6 +282,7 @@ function WelcomeAuthContent({
             type="button"
             onClick={() => {
               setMode("log-in");
+              setPasswordConfirm("");
               setError(null);
               setNotice(null);
             }}
@@ -265,8 +291,8 @@ function WelcomeAuthContent({
             {t("auth.alreadyHaveAccountQuestionLogIn")}
           </button>
 
-          <div className="pt-1 text-center text-[11px] uppercase tracking-[0.14em] text-[#B89A80]">
-            Or continue with
+          <div className="pt-1 text-center text-[11px] tracking-wide text-[#B89A80]">
+            {t("welcomeModal.orContinueWith")}
           </div>
 
           <button
@@ -275,7 +301,7 @@ function WelcomeAuthContent({
             className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl border border-[#CDB8A7] bg-white text-sm font-semibold text-[#2A2420]"
           >
             <KakaoLogo />
-            <span>Continue with Kakao</span>
+            <span>{t("welcomeModal.continueKakao")}</span>
           </button>
           <button
             type="button"
@@ -283,7 +309,7 @@ function WelcomeAuthContent({
             className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl border border-[#CDB8A7] bg-white text-sm font-semibold text-[#2A2420]"
           >
             <NaverLogo />
-            <span>Continue with Naver</span>
+            <span>{t("welcomeModal.continueNaver")}</span>
           </button>
           <button
             type="button"
@@ -291,12 +317,10 @@ function WelcomeAuthContent({
             className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl border border-[#CDB8A7] bg-white text-sm font-semibold text-[#2A2420]"
           >
             <GoogleLogo />
-            <span>Continue with Google</span>
+            <span>{t("welcomeModal.continueGoogle")}</span>
           </button>
 
-          <p className="text-center text-[11px] text-[#A0522D]/60">
-            Use Kakao, Naver, or Google to continue.
-          </p>
+          <p className="text-center text-[11px] text-[#A0522D]/60">{t("welcomeModal.oauthHelper")}</p>
         </div>
       )}
 
@@ -310,20 +334,20 @@ function WelcomeAuthContent({
         }}
         className="mt-5 w-full text-center text-[11px] text-[#A98E79] underline-offset-2 hover:underline"
       >
-        Browse Around (Limited features)
+        {t("welcomeModal.browseLimited")}
       </button>
 
       <div className="mt-3 rounded-2xl border border-[#E0CDBD] bg-[#FFFDF9] px-3.5 py-3">
         <label className="flex cursor-pointer items-center justify-between gap-3">
           <span className="inline-flex items-center text-[12px] text-[#2A2420]/75">
-            Don&apos;t show again
+            {t("welcomeModal.dontShowAgain")}
           </span>
           <button
             type="button"
             onClick={() => setDontShowAgain((prev) => !prev)}
             role="switch"
             aria-checked={dontShowAgain}
-            aria-label="Toggle don't show again"
+            aria-label={t("welcomeModal.toggleDontShowAria")}
             className={`relative inline-flex h-7 w-12 items-center rounded-full border transition-colors ${
               dontShowAgain
                 ? "border-[#A0522D] bg-[#A0522D]/90"
@@ -347,7 +371,7 @@ function WelcomeAuthContent({
           }}
                   className="mt-2 w-full text-left text-[11px] text-[#A98E79] underline-offset-2 hover:underline"
         >
-          Hide this welcome modal now
+          {t("welcomeModal.hideNow")}
         </button>
       </div>
     </>
@@ -362,6 +386,7 @@ export function WelcomeModal({
   initialAuthView = false,
   initialMode = "default",
 }: WelcomeModalProps) {
+  const { t } = useTranslation("common");
   const hasClerkKey = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
   return (
@@ -397,7 +422,7 @@ export function WelcomeModal({
               type="button"
               onClick={onClose}
               className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-[#2A2420]/60 hover:bg-[#F3E8DA]"
-              aria-label="Close welcome modal"
+              aria-label={t("welcomeModal.closeAria")}
             >
               x
             </button>
@@ -416,17 +441,15 @@ export function WelcomeModal({
                   className="text-center font-semibold"
                   style={{ color: "#A0522D", fontSize: "22px", fontFamily: "'Patrick Hand', cursive" }}
                 >
-                  Welcome to the In-Bite Family!
+                  {t("welcomeModal.title")}
                 </h2>
-                <p className="mt-4 text-center text-sm leading-6 text-[#6F4C32]">
-                  Social and email onboarding is ready. Set Clerk key in env to enable sign in.
-                </p>
+                <p className="mt-4 text-center text-sm leading-6 text-[#6F4C32]">{t("welcomeModal.noClerkBody")}</p>
                 <button
                   type="button"
                   onClick={onSecondary}
                   className="mt-6 h-11 w-full rounded-2xl border border-[#A0522D]/25 bg-white/80 text-sm font-medium text-[#A0522D]"
                 >
-                  Browse Around
+                  {t("welcomeModal.noClerkBrowse")}
                 </button>
                 <button
                   type="button"
@@ -436,7 +459,7 @@ export function WelcomeModal({
                   }}
                   className="mt-2 w-full text-center text-[12px] text-[#A0522D]/55 underline-offset-2 hover:underline"
                 >
-                  Don&apos;t show again
+                  {t("welcomeModal.dontShowAgain")}
                 </button>
               </>
             )}

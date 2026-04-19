@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchPublicProfileByClerkId, type PublicProfileSnapshot } from "@/lib/publicProfile";
+import { setProfileAvatar } from "@/lib/profileAvatarStore";
 
 export type OpenUserProfileArgs = {
   clerkId: string;
@@ -30,9 +31,17 @@ export function useUserProfilePreview() {
 type ProviderProps = {
   children: ReactNode;
   getSupabaseToken?: () => Promise<string | null>;
+  /** Opens / creates Say Hi chat (same as Daily Bite card). */
+  onSayHiHost?: (host: { hostId: string; hostName: string }) => void;
+  currentUserClerkId?: string | null;
 };
 
-export function UserProfilePreviewProvider({ children, getSupabaseToken }: ProviderProps) {
+export function UserProfilePreviewProvider({
+  children,
+  getSupabaseToken,
+  onSayHiHost,
+  currentUserClerkId,
+}: ProviderProps) {
   const { t } = useTranslation("common");
   const [open, setOpen] = useState(false);
   const [clerkId, setClerkId] = useState<string | null>(null);
@@ -72,6 +81,8 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
           }
           const row = await fetchPublicProfileByClerkId(id, token);
           setSnapshot(row);
+          const fresh = row?.image_url?.trim();
+          if (fresh) setProfileAvatar(id, fresh);
         } catch {
           setSnapshot(null);
         } finally {
@@ -82,11 +93,27 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
     [getSupabaseToken],
   );
 
+  const handleSayHi = useCallback(() => {
+    const id = clerkId?.trim();
+    if (!id || !id.startsWith("user_")) return;
+    if (id === (currentUserClerkId ?? "").trim()) return;
+    const name =
+      snapshot?.display_name?.trim() ||
+      fallbackName.trim() ||
+      t("profilePreview.fallbackName");
+    onSayHiHost?.({ hostId: `host:${id}`, hostName: name });
+    closeUserProfile();
+  }, [clerkId, currentUserClerkId, snapshot?.display_name, fallbackName, onSayHiHost, closeUserProfile, t]);
+
   const displayName =
     snapshot?.display_name?.trim() ||
     fallbackName ||
     t("profilePreview.fallbackName");
   const imageUrl = snapshot?.image_url?.trim() || fallbackImage;
+  const canSayHiFromPreview =
+    Boolean(onSayHiHost) &&
+    Boolean(clerkId?.trim().startsWith("user_")) &&
+    (clerkId ?? "").trim() !== (currentUserClerkId ?? "").trim();
 
   /** Only show the RPC/setup hint when Supabase was called but we still have no row and no UI fallbacks. */
   const showHardLoadError =
@@ -139,9 +166,21 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
                     <img src={imageUrl} alt="" className="h-full w-full object-cover" />
                   ) : null}
                 </div>
-                <h2 id="user-profile-preview-title" className="mt-3 text-[18px] font-semibold text-[#5C3318]">
-                  {displayName}
-                </h2>
+                <div className="mt-3 flex w-full flex-wrap items-center justify-center gap-2">
+                  <h2 id="user-profile-preview-title" className="text-[18px] font-semibold text-[#5C3318]">
+                    {displayName}
+                  </h2>
+                  {canSayHiFromPreview ? (
+                    <button
+                      type="button"
+                      onClick={handleSayHi}
+                      className="rounded-full border border-[#A0522D]/45 bg-white/90 px-3 py-1 text-[11px] font-semibold lowercase tracking-[0.01em] text-[#A0522D] shadow-sm hover:bg-[#A0522D]/5"
+                      aria-label={t("profilePreview.sayHiAria", { name: displayName })}
+                    >
+                      {t("explore.sayHi")}
+                    </button>
+                  ) : null}
+                </div>
                 {loading ? (
                   <p className="mt-2 text-[13px] text-[#A0522D]/65">{t("loading")}</p>
                 ) : showHardLoadError ? (
@@ -166,16 +205,16 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
                         {snapshot.profile_mbti}
                       </p>
                     ) : null}
-                    {snapshot?.profile_hobbies ? (
+                    {snapshot ? (
                       <p>
                         <span className="font-semibold text-[#A0522D]/85">{t("profilePreview.hobbies")}</span>{" "}
-                        {snapshot.profile_hobbies}
+                        {snapshot.profile_hobbies?.trim() ? snapshot.profile_hobbies : t("profilePreview.fieldEmpty")}
                       </p>
                     ) : null}
-                    {snapshot?.profile_bio ? (
+                    {snapshot ? (
                       <p className="whitespace-pre-wrap break-words">
                         <span className="font-semibold text-[#A0522D]/85">{t("profilePreview.bio")}</span>{" "}
-                        {snapshot.profile_bio}
+                        {snapshot.profile_bio?.trim() ? snapshot.profile_bio : t("profilePreview.fieldEmpty")}
                       </p>
                     ) : null}
                   </div>

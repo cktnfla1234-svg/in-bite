@@ -428,7 +428,11 @@ export default function AppShell({
 
   return (
     <PreferredCurrencyProvider>
-    <UserProfilePreviewProvider getSupabaseToken={getSupabaseToken}>
+    <UserProfilePreviewProvider
+      getSupabaseToken={getSupabaseToken}
+      onSayHiHost={({ hostId, hostName }) => void openSayHiChat(hostId, hostName)}
+      currentUserClerkId={welcomeClerkUserId}
+    >
     <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#FDFAF5]">
       <Toaster
         richColors={false}
