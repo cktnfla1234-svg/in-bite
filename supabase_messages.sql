@@ -1,6 +1,6 @@
 -- Chat messages (cross-device). Clerk JWT `sub` matches `sender_id` / `chat_rooms.participant_clerk_ids`.
--- Run after `supabase_chat_rooms.sql`. Then enable Realtime (Dashboard → Database → Replication, or):
---   alter publication supabase_realtime add table public.messages;
+-- Run after `supabase_chat_rooms.sql`.
+-- Realtime: the Dashboard may not show a per-table toggle — run `supabase_messages_realtime.sql` instead.
 
 create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
@@ -50,5 +50,4 @@ create policy messages_insert_as_sender
 -- If you created `messages` before this script added `kind`:
 -- alter table public.messages add column if not exists kind text null;
 
--- Realtime (Supabase Dashboard → Database → Replication), or:
---   alter publication supabase_realtime add table public.messages;
+-- Realtime: run `supabase_messages_realtime.sql` (adds this table to publication `supabase_realtime`).
