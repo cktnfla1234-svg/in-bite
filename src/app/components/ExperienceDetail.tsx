@@ -9,9 +9,11 @@ type ExperienceDetailProps = {
   experience: Experience;
   onBack: () => void;
   onSayHi?: () => void;
+  /** Opens global profile preview (host row). */
+  onOpenHostProfile?: () => void;
 };
 
-export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDetailProps) {
+export function ExperienceDetail({ experience, onBack, onSayHi, onOpenHostProfile }: ExperienceDetailProps) {
   const { preferredCurrency } = usePreferredCurrency();
   return (
     <main className="invite-experience-detail min-h-full w-full bg-[#FDFAF5] pb-28">
@@ -54,14 +56,33 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
 
         <div className="absolute bottom-0 left-0 right-0 translate-y-1/2 px-5">
           <div className="flex items-end gap-3">
-            <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-[#E7D7C7] shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
-              <CookieLogo size={40} />
-            </div>
+            <button
+              type="button"
+              onClick={() => onOpenHostProfile?.()}
+              disabled={!onOpenHostProfile}
+              className={`flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-[#E7D7C7] shadow-[0_10px_30px_rgba(0,0,0,0.12)] ${
+                onOpenHostProfile ? "cursor-pointer ring-0 transition hover:opacity-95" : "cursor-default"
+              }`}
+              aria-label={onOpenHostProfile ? `View ${experience.hostName} profile` : undefined}
+            >
+              {experience.hostAvatarUrl ? (
+                <img src={experience.hostAvatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <CookieLogo size={40} />
+              )}
+            </button>
             <div className="mb-1 min-w-0 flex-1 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.08)] ring-1 ring-[#EDD5C0]/80">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-body-ko text-[15px] font-semibold text-[#5C3318]">
+                <button
+                  type="button"
+                  disabled={!onOpenHostProfile}
+                  onClick={() => onOpenHostProfile?.()}
+                  className={`font-body-ko text-left text-[15px] font-semibold text-[#5C3318] ${
+                    onOpenHostProfile ? "hover:underline" : ""
+                  }`}
+                >
                   {experience.hostName}
-                </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => onSayHi?.()}

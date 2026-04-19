@@ -203,6 +203,16 @@
     "saveMissingSupabaseToken": "Supabase 연동용 Clerk JWT(템플릿 이름: supabase)가 없습니다. AUTH_SUPABASE_SETUP.md를 참고해 템플릿을 만든 뒤 다시 로그인해 주세요.",
     "saveServerFailed": "서버에 프로필을 저장하지 못했습니다: {{detail}}"
   },
+  "profilePreview": {
+    "fallbackName": "회원",
+    "loadError": "프로필을 불러오지 못했습니다. Supabase에서 supabase_public_profile_rpc.sql 실행 후 다시 로그인해 보세요.",
+    "city": "위치",
+    "mbti": "MBTI",
+    "hobbies": "관심사",
+    "bio": "소개",
+    "closeAria": "프로필 미리보기 닫기",
+    "viewProfileAria": "{{name}} 프로필 보기"
+  },
   "locationPicker": {
     "meetingTitle": "장소 *",
     "country": "국가 *",

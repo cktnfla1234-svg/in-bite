@@ -5,8 +5,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Check, Heart, MessageCircle, MessageSquare, MoreVertical } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { HostProfileScreen } from "./HostProfileScreen";
 import { ExperienceDetail } from "./ExperienceDetail";
+import { useUserProfilePreview } from "@/app/context/UserProfilePreviewContext";
 import { dailyBites, experiences, type DailyBitePost, type Experience, type IncludedItem } from "@/data/experiences";
 import {
   getLocalInvites,
@@ -51,6 +51,7 @@ import { listOwnInvites, type InviteRow } from "@/lib/invites";
 import { isSurimChaDemoUser, upsertSurimChaDemoInvites } from "@/lib/surimChaDemoInvites";
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchDailyBiteComments, insertDailyBiteComment, type RemoteDailyBiteCommentRow } from "@/lib/dailyBiteCommentsRemote";
+import { fetchPublicProfileByClerkId } from "@/lib/publicProfile";
 import { isSelectableCurrency } from "@/lib/currency";
 
 type ExploreScreenProps = {
@@ -74,7 +75,7 @@ type ExploreScreenProps = {
   onDailyBiteEditModalOpenChange?: (open: boolean) => void;
 };
 
-type ExploreMode = "feed" | "host" | "detail" | "dailyDetail";
+type ExploreMode = "feed" | "detail" | "dailyDetail";
 
 function formatDateTimeLabel(iso?: string) {
   if (!iso) return "";
@@ -118,6 +119,7 @@ export function ExploreScreen({
 }: ExploreScreenProps) {
   const { preferredCurrency } = usePreferredCurrency();
   const { t } = useTranslation("common");
+  const { openUserProfile } = useUserProfilePreview();
   const [mode, setMode] = useState<ExploreMode>("feed");
   const [selectedCity, setSelectedCity] = useState(initialCity);
   const [selectedTaste, setSelectedTaste] = useState<string | null>(initialTaste);
@@ -588,7 +590,14 @@ export function ExploreScreen({
     if (!target) return;
     setSelectedExperienceId(target.id);
     onCardClick?.(target.id);
-    setMode("host");
+    const hid = normalizeId(target.hostClerkId ?? "");
+    if (hid.startsWith("user_")) {
+      openUserProfile({
+        clerkId: hid,
+        fallbackDisplayName: target.hostName,
+        fallbackImageUrl: target.hostAvatarUrl,
+      });
+    }
   };
 
   const handleOpenDetail = (experienceId?: string) => {
@@ -847,6 +856,7 @@ export function ExploreScreen({
   );
 
   if (mode === "detail" && selectedExperience) {
+    const hostClerk = normalizeId(selectedExperience.hostClerkId ?? "");
     return (
       <ExperienceDetail
         experience={selectedExperience}
@@ -855,15 +865,16 @@ export function ExploreScreen({
           if (onRequireAuth && !onRequireAuth("chat")) return;
           onSayHi?.(selectedExperience);
         }}
-      />
-    );
-  }
-
-  if (mode === "host" && selectedExperience) {
-    return (
-      <HostProfileScreen
-        hostName={selectedExperience.hostName}
-        onBack={() => setMode("feed")}
+        onOpenHostProfile={
+          hostClerk.startsWith("user_")
+            ? () =>
+                openUserProfile({
+                  clerkId: hostClerk,
+                  fallbackDisplayName: selectedExperience.hostName,
+                  fallbackImageUrl: selectedExperience.hostAvatarUrl,
+                })
+            : undefined
+        }
       />
     );
   }
@@ -1236,11 +1247,13 @@ function DailyBiteCard({
   onSayHiHost?: (host: { hostId: string; hostName: string }) => void;
 }) {
   const { t } = useTranslation("common");
+  const { openUserProfile } = useUserProfilePreview();
   const [postMenuOpen, setPostMenuOpen] = useState(false);
   const postMenuRef = useRef<HTMLDivElement | null>(null);
   const displayBody = useDisplayPostBody(post.id, post.text);
   const commentCount = commentCountProp ?? post.commentCount ?? 0;
   const clerkHostId = normalizeId(post.authorClerkId != null ? String(post.authorClerkId) : "");
+  const canOpenAuthorProfile = clerkHostId.startsWith("user_");
   const normalizedHostId = clerkHostId
     ? `host:${clerkHostId}`
     : `daily-author:${post.authorName.trim().toLowerCase().replace(/\s+/g, "-")}`;
@@ -1259,14 +1272,45 @@ function DailyBiteCard({
     <article className="rounded-[26px] bg-white/60 p-5 shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#EDD5C0] bg-[#F0E4D8]">
+          <button
+            type="button"
+            className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#EDD5C0] bg-[#F0E4D8] disabled:cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!canOpenAuthorProfile) return;
+              openUserProfile({
+                clerkId: clerkHostId,
+                fallbackDisplayName: post.authorName,
+                fallbackImageUrl: post.authorImageUrl,
+              });
+            }}
+            disabled={!canOpenAuthorProfile}
+            aria-label={canOpenAuthorProfile ? t("profilePreview.viewProfileAria", { name: post.authorName }) : undefined}
+          >
             {post.authorImageUrl ? (
-              <img src={post.authorImageUrl} alt={post.authorName} className="h-full w-full object-cover" />
+              <img src={post.authorImageUrl} alt="" className="h-full w-full object-cover" />
             ) : null}
-          </div>
-          <div className="min-w-0">
+          </button>
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-[14px] font-semibold text-[#A0522D]">{post.authorName}</div>
+              <button
+                type="button"
+                disabled={!canOpenAuthorProfile}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!canOpenAuthorProfile) return;
+                  openUserProfile({
+                    clerkId: clerkHostId,
+                    fallbackDisplayName: post.authorName,
+                    fallbackImageUrl: post.authorImageUrl,
+                  });
+                }}
+                className={`text-left text-[14px] font-semibold text-[#A0522D] disabled:cursor-default ${
+                  canOpenAuthorProfile ? "hover:underline" : ""
+                }`}
+              >
+                {post.authorName}
+              </button>
               {canSayHi ? (
                 <button
                   type="button"
@@ -1387,6 +1431,8 @@ type StoredComment = {
   likedBy: string[];
   /** Total likes from Supabase when available; falls back to likedBy.length. */
   likesCount?: number;
+  /** From `profiles.image_url` when available. */
+  authorImageUrl?: string | null;
 };
 
 function dailyCommentsStorageKey(postId: string) {
@@ -1418,6 +1464,7 @@ function mapRemoteCommentToStored(r: RemoteDailyBiteCommentRow): StoredComment {
     createdAt: r.created_at,
     likedBy: [],
     likesCount: 0,
+    authorImageUrl: null,
   };
 }
 
@@ -1451,6 +1498,8 @@ function DailyBiteCommentsSection({
 }) {
   const { t } = useTranslation("common");
   const { user } = useUser();
+  const { openUserProfile } = useUserProfilePreview();
+  const [avatarMapTick, setAvatarMapTick] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(() => loadStoredComments(postId));
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -1463,6 +1512,8 @@ function DailyBiteCommentsSection({
     setDraft("");
     setMsg(null);
   }, [postId]);
+
+  useEffect(() => subscribeProfileAvatarSync(() => setAvatarMapTick((n) => n + 1)), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1480,10 +1531,28 @@ function DailyBiteCommentsSection({
           merged = local;
         }
         if (cancelled) return;
-        setComments(merged);
+        let mergedForUi = merged;
+        if (token) {
+          const clerkIds = [...new Set(merged.map((c) => c.authorId).filter((id) => id.startsWith("user_")))];
+          if (clerkIds.length) {
+            const imgMap = new Map<string, string | null>();
+            await Promise.all(
+              clerkIds.map(async (cid) => {
+                const row = await fetchPublicProfileByClerkId(cid, token);
+                imgMap.set(cid, row?.image_url?.trim() || null);
+              }),
+            );
+            if (cancelled) return;
+            mergedForUi = merged.map((c) => ({
+              ...c,
+              authorImageUrl: imgMap.get(c.authorId) ?? c.authorImageUrl,
+            }));
+          }
+        }
+        setComments(mergedForUi);
 
         if (!token || !user?.id) return;
-        const ids = merged.map((c) => c.id);
+        const ids = mergedForUi.map((c) => c.id);
         if (!ids.length) return;
         const [counts, myLikes] = await Promise.all([
           fetchLikeCountsForComments(token, ids),
@@ -1566,6 +1635,15 @@ function DailyBiteCommentsSection({
                         : c,
                     ),
                   );
+                  if (mapped.authorId.startsWith("user_")) {
+                    const prof = await fetchPublicProfileByClerkId(mapped.authorId, t2);
+                    const img = prof?.image_url?.trim();
+                    if (img) {
+                      setComments((prev) =>
+                        prev.map((c) => (c.id === mapped.id ? { ...c, authorImageUrl: img } : c)),
+                      );
+                    }
+                  }
                 } catch {
                   // optional
                 }
@@ -1642,6 +1720,7 @@ function DailyBiteCommentsSection({
             createdAt: inserted.createdAt,
             likedBy: [],
             likesCount: 0,
+            authorImageUrl: user.imageUrl ?? null,
           };
         } else {
           row = {
@@ -1652,6 +1731,7 @@ function DailyBiteCommentsSection({
             createdAt: new Date().toISOString(),
             likedBy: [],
             likesCount: 0,
+            authorImageUrl: user.imageUrl ?? null,
           };
           setMsg(t("explore.commentSavedLocalOnly"));
         }
@@ -1664,6 +1744,7 @@ function DailyBiteCommentsSection({
           createdAt: new Date().toISOString(),
           likedBy: [],
           likesCount: 0,
+          authorImageUrl: user.imageUrl ?? null,
         };
       }
     } catch {
@@ -1675,6 +1756,7 @@ function DailyBiteCommentsSection({
         createdAt: new Date().toISOString(),
         likedBy: [],
         likesCount: 0,
+        authorImageUrl: user.imageUrl ?? null,
       };
       setMsg(t("explore.commentSavedLocalOnly"));
     } finally {
@@ -1800,9 +1882,51 @@ function DailyBiteCommentsSection({
         {comments.map((c) => {
           const liked = c.likedBy.includes(user.id);
           const likeTotal = c.likesCount ?? c.likedBy.length;
+          const avatarSrc = getProfileAvatar(c.authorId) || c.authorImageUrl || undefined;
+          const canOpen = c.authorId.startsWith("user_");
           return (
             <div key={c.id} className="rounded-xl border border-[#EDE4DB] bg-white/75 px-3 py-2.5">
-              <div className="text-[12px] font-semibold text-[#A0522D]/85">{c.authorName}</div>
+              <div className="flex items-start gap-2.5">
+                <button
+                  type="button"
+                  disabled={!canOpen}
+                  className="mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[#EDD5C0] bg-[#F0E4D8] disabled:cursor-default"
+                  onClick={() => {
+                    if (!canOpen) return;
+                    openUserProfile({
+                      clerkId: c.authorId,
+                      fallbackDisplayName: c.authorName,
+                      fallbackImageUrl: avatarSrc,
+                    });
+                  }}
+                  aria-label={canOpen ? t("profilePreview.viewProfileAria", { name: c.authorName }) : undefined}
+                >
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-[#A0522D]/50">
+                      {(c.authorName || "?").slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    disabled={!canOpen}
+                    onClick={() => {
+                      if (!canOpen) return;
+                      openUserProfile({
+                        clerkId: c.authorId,
+                        fallbackDisplayName: c.authorName,
+                        fallbackImageUrl: avatarSrc,
+                      });
+                    }}
+                    className={`text-left text-[12px] font-semibold text-[#A0522D]/85 disabled:cursor-default ${
+                      canOpen ? "hover:underline" : ""
+                    }`}
+                  >
+                    {c.authorName}
+                  </button>
               <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[#2C1A0E]">{c.text}</p>
               <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[#A0522D]/45">
                 <button
@@ -1821,6 +1945,8 @@ function DailyBiteCommentsSection({
                 >
                   {t("explore.reply")}
                 </button>
+              </div>
+                </div>
               </div>
             </div>
           );

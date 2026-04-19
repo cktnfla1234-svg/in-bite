@@ -203,6 +203,16 @@
     "saveMissingSupabaseToken": "Missing Supabase session. Add a Clerk JWT template named “supabase” (see AUTH_SUPABASE_SETUP.md) and sign in again.",
     "saveServerFailed": "Could not sync profile to the server: {{detail}}"
   },
+  "profilePreview": {
+    "fallbackName": "Member",
+    "loadError": "Profile details are unavailable. If this is unexpected, run supabase_public_profile_rpc.sql in Supabase and sign in again.",
+    "city": "Location",
+    "mbti": "MBTI",
+    "hobbies": "Interests",
+    "bio": "Bio",
+    "closeAria": "Close profile preview",
+    "viewProfileAria": "View {{name}}'s profile"
+  },
   "locationPicker": {
     "meetingTitle": "Location *",
     "country": "Country *",

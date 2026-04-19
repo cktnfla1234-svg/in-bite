@@ -18,6 +18,7 @@ import { LoginPromptModal, type LoginPromptKind } from "@/app/components/LoginPr
 import { PostSignupWelcomeModal } from "@/app/components/PostSignupWelcomeModal";
 import { grantWelcomeReward, hasWelcomeRewardBeenGranted } from "@/lib/wallet";
 import { PreferredCurrencyProvider } from "@/lib/PreferredCurrencyContext";
+import { UserProfilePreviewProvider } from "@/app/context/UserProfilePreviewContext";
 import { removeSyntheticChatRooms, startSayHiChat } from "@/lib/chat";
 import type { Experience } from "@/data/experiences";
 import { ActivitySheet } from "@/app/components/ActivitySheet";
@@ -427,6 +428,7 @@ export default function AppShell({
 
   return (
     <PreferredCurrencyProvider>
+    <UserProfilePreviewProvider getSupabaseToken={getSupabaseToken}>
     <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#FDFAF5]">
       <Toaster
         richColors={false}
@@ -710,6 +712,7 @@ export default function AppShell({
         ) : null}
       </AnimatePresence>
     </div>
+    </UserProfilePreviewProvider>
     </PreferredCurrencyProvider>
   );
 }

@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChatListScreen } from "./ChatListScreen";
 import { ChatRoomScreen } from "./ChatRoomScreen";
-import { HostProfileScreen } from "./HostProfileScreen";
 import { listChatRooms, listRoomMessages, sendChatMessage, type ChatRoomRecord } from "@/lib/chat";
+import { useUserProfilePreview } from "@/app/context/UserProfilePreviewContext";
+import { getProfileAvatar } from "@/lib/profileAvatarStore";
 import { createPaymentIntent } from "@/lib/payments";
 import type { CurrencyCode } from "@/lib/currency";
 
@@ -36,8 +37,8 @@ export function ChatScreen({
   const { user } = useUser();
   const { getToken } = useAuth();
   const { t } = useTranslation("common");
+  const { openUserProfile } = useUserProfilePreview();
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [activeProfile, setActiveProfile] = useState<{ userId: string; name: string } | null>(null);
   const [chats, setChats] = useState<ChatRoomRecord[]>([]);
   const consumedLaunchNonce = useRef<number | null>(null);
   const displayName =
@@ -73,9 +74,13 @@ export function ChatScreen({
     [activeChatId, chats],
   );
 
-  return activeProfile ? (
-    <HostProfileScreen hostName={activeProfile.name} onBack={() => setActiveProfile(null)} />
-  ) : activeChat ? (
+  const directPeerClerkId =
+    activeChat?.type === "direct"
+      ? activeChat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
+      : undefined;
+  const directPeerName = activeChat?.type === "direct" ? activeChat.title : undefined;
+
+  return activeChat ? (
     <ChatRoomScreen
       chatId={activeChat.id}
       title={activeChat.title}
@@ -119,6 +124,18 @@ export function ChatScreen({
         });
         setChats(listChatRooms());
       }}
+      directPeerClerkId={directPeerClerkId}
+      directPeerName={directPeerName}
+      onOpenDirectPeerProfile={
+        directPeerClerkId
+          ? () =>
+              openUserProfile({
+                clerkId: directPeerClerkId,
+                fallbackDisplayName: directPeerName ?? "",
+                fallbackImageUrl: getProfileAvatar(directPeerClerkId),
+              })
+          : undefined
+      }
       onCreatePaymentIntent={async ({ amount, currency }: { amount: number; currency: CurrencyCode }) => {
         const receiverId = activeChat.participantIds.find((id) => id !== myUserId) ?? "host";
         const token = await getToken({ template: "supabase" });
@@ -144,13 +161,20 @@ export function ChatScreen({
             : undefined,
         profileUserId:
           chat.type === "direct"
-            ? chat.participantIds.find((id) => id !== myUserId)
+            ? chat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
             : undefined,
         timeLabel: new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         participants: chat.participantIds,
       }))}
       onSelectChat={setActiveChatId}
-      onOpenProfile={setActiveProfile}
+      onOpenProfile={({ userId, name }) => {
+        if (!userId.startsWith("user_")) return;
+        openUserProfile({
+          clerkId: userId,
+          fallbackDisplayName: name,
+          fallbackImageUrl: getProfileAvatar(userId),
+        });
+      }}
     />
   );
 }

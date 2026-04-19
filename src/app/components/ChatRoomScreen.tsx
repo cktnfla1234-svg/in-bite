@@ -3,6 +3,7 @@ import { CreditCard, Gift, Handshake, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChatMessageRecord } from "@/lib/chat";
+import { getProfileAvatar } from "@/lib/profileAvatarStore";
 import { BITE_BUNDLE_PRICE_KRW } from "@/lib/bitePolicy";
 import { formatFiat, type CurrencyCode } from "@/lib/currency";
 import { ChatPaymentSheet } from "./ChatPaymentSheet";
@@ -23,6 +24,10 @@ type ChatRoomScreenProps = {
   onInviteCompanion?: (options?: { note?: string }) => void;
   onCreatePaymentIntent?: (input: { amount: number; currency: CurrencyCode }) => Promise<{ clientSecret: string }>;
   onBack: () => void;
+  /** Direct chat: the other participant’s Clerk id (for profile preview). */
+  directPeerClerkId?: string;
+  directPeerName?: string;
+  onOpenDirectPeerProfile?: () => void;
 };
 
 function sameLocalDay(a: Date, b: Date) {
@@ -45,6 +50,9 @@ export function ChatRoomScreen({
   onInviteCompanion,
   onCreatePaymentIntent,
   onBack,
+  directPeerClerkId,
+  directPeerName,
+  onOpenDirectPeerProfile,
 }: ChatRoomScreenProps) {
   const { t, i18n } = useTranslation("common");
   const [draft, setDraft] = useState("");
@@ -138,6 +146,22 @@ export function ChatRoomScreen({
             }
             const m = row.message;
             const isMe = m.senderId === myUserId;
+            let prevPeerMsg: ChatMessageRecord | null = null;
+            for (let j = idx - 1; j >= 0; j--) {
+              const rj = rows[j];
+              if (rj.type === "separator") break;
+              if (rj.type === "message") {
+                prevPeerMsg = rj.message;
+                break;
+              }
+            }
+            const showPeerHeader =
+              type === "direct" &&
+              !isMe &&
+              Boolean(directPeerClerkId && onOpenDirectPeerProfile && directPeerName) &&
+              m.senderId === directPeerClerkId &&
+              (!prevPeerMsg || prevPeerMsg.senderId !== m.senderId);
+            const peerAvatar = directPeerClerkId ? getProfileAvatar(directPeerClerkId) : undefined;
             const time = new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
             const isIce = m.kind === "icebreaker";
             const isInviteCard = m.kind === "companion_invite";
@@ -149,6 +173,20 @@ export function ChatRoomScreen({
               <div key={m.id} className={isMe ? "flex justify-end" : "flex justify-start"}>
                 <div className={isMe ? "max-w-[80%]" : "max-w-[85%]"}>
                   <div className="mb-2 text-center text-[11px] text-[#A0522D]/60">{time}</div>
+                  {showPeerHeader ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenDirectPeerProfile?.()}
+                      className="mb-1.5 flex w-full items-center gap-2 rounded-xl border border-[#EDD5C0] bg-white/80 px-2 py-1.5 text-left text-[12px] font-semibold text-[#A0522D] shadow-sm transition hover:bg-[#A0522D]/5"
+                    >
+                      <span className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-[#EDD5C0] bg-[#F0E4D8]">
+                        {peerAvatar ? (
+                          <img src={peerAvatar} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 truncate">{directPeerName}</span>
+                    </button>
+                  ) : null}
                   <motion.div
                     initial={isIce ? { scale: 0.9, y: 6 } : undefined}
                     animate={isIce ? { scale: [0.95, 1.04, 1], y: [6, -2, 0] } : undefined}

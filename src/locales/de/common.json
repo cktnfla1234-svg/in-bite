@@ -203,6 +203,16 @@
     "saveMissingSupabaseToken": "Fehlende Supabase-Sitzung. Lege in Clerk eine JWT-Vorlage „supabase“ an (siehe AUTH_SUPABASE_SETUP.md) und melde dich erneut an.",
     "saveServerFailed": "Profil konnte nicht mit dem Server synchronisiert werden: {{detail}}"
   },
+  "profilePreview": {
+    "fallbackName": "Mitglied",
+    "loadError": "Profil konnte nicht geladen werden. Führe supabase_public_profile_rpc.sql in Supabase aus und melde dich erneut an.",
+    "city": "Ort",
+    "mbti": "MBTI",
+    "hobbies": "Interessen",
+    "bio": "Bio",
+    "closeAria": "Profilvorschau schließen",
+    "viewProfileAria": "Profil von {{name}} anzeigen"
+  },
   "locationPicker": {
     "meetingTitle": "Ort *",
     "country": "Land *",
