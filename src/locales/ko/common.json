@@ -72,7 +72,7 @@
     "email": "이메일",
     "password": "비밀번호",
     "passwordConfirm": "비밀번호 확인",
-    "passwordMismatch": "비밀번호가 일치하지 않아요. 다시 확인해 주세요.",
+    "passwordMismatch": "비밀번호가 일치하지 않아요. 다시 입력해 주세요.",
     "pleaseWait": "잠시만요…",
     "createAccount": "계정 만들기",
     "backToOptions": "다른 방법으로 돌아가기",

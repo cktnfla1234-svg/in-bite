@@ -72,7 +72,7 @@
     "email": "E-Mail",
     "password": "Passwort",
     "passwordConfirm": "Passwort bestätigen",
-    "passwordMismatch": "Die Passwörter stimmen nicht überein. Bitte erneut prüfen.",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein. Bitte geben Sie sie erneut ein.",
     "pleaseWait": "Bitte warten…",
     "createAccount": "Konto erstellen",
     "backToOptions": "Zurück zu den Optionen",

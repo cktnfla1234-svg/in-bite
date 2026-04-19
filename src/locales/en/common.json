@@ -72,7 +72,7 @@
     "email": "Email",
     "password": "Password",
     "passwordConfirm": "Confirm password",
-    "passwordMismatch": "Passwords do not match. Please check and try again.",
+    "passwordMismatch": "Your passwords don't match. Please enter them again.",
     "pleaseWait": "Please wait…",
     "createAccount": "Create account",
     "backToOptions": "Back to options",
