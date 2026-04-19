@@ -10,11 +10,13 @@ export async function setCommentLikeRemote(
   const supabase = getSupabaseClient(token);
   if (!supabase) return;
   if (liked) {
-    const { error } = await supabase.from("daily_bite_comment_likes").upsert(
-      { post_id: postId, comment_id: commentId, user_id: userId },
-      { onConflict: "comment_id,user_id" },
-    );
-    if (error) throw error;
+    const { error } = await supabase.from("daily_bite_comment_likes").insert({
+      post_id: postId,
+      comment_id: commentId,
+      user_id: userId,
+    });
+    const code = (error as { code?: string } | null)?.code;
+    if (error && code !== "23505") throw error;
   } else {
     const { error } = await supabase.from("daily_bite_comment_likes").delete().eq("comment_id", commentId).eq("user_id", userId);
     if (error) throw error;

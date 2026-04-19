@@ -1470,7 +1470,18 @@ function mapRemoteCommentToStored(r: RemoteDailyBiteCommentRow): StoredComment {
 
 function mergeCommentThreads(local: StoredComment[], remote: StoredComment[]): StoredComment[] {
   const map = new Map<string, StoredComment>();
-  for (const row of remote) map.set(row.id, row);
+  for (const row of remote) {
+    const prevLocal = local.find((l) => l.id === row.id);
+    map.set(row.id, {
+      ...row,
+      likedBy: prevLocal?.likedBy?.length ? prevLocal.likedBy : row.likedBy,
+      likesCount:
+        typeof prevLocal?.likesCount === "number" && (prevLocal.likesCount ?? 0) > (row.likesCount ?? 0)
+          ? prevLocal.likesCount
+          : row.likesCount,
+      authorImageUrl: row.authorImageUrl ?? prevLocal?.authorImageUrl,
+    });
+  }
   for (const row of local) {
     if (!map.has(row.id)) map.set(row.id, row);
   }
@@ -1931,12 +1942,24 @@ function DailyBiteCommentsSection({
               <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[#A0522D]/45">
                 <button
                   type="button"
-                  onClick={() => void toggleCommentLike(c)}
-                  className={`inline-flex items-center gap-1 font-medium transition ${liked ? "text-[#A0522D]" : "hover:text-[#A0522D]/70"}`}
+                  aria-pressed={liked}
+                  aria-label={liked ? t("explore.commentUnlikeAria") : t("explore.commentLikeAria")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void toggleCommentLike(c);
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-0.5 py-0.5 font-medium transition ${
+                    liked ? "text-[#A0522D]" : "text-[#A0522D]/55 hover:text-[#A0522D]/85"
+                  }`}
                 >
-                  <Heart className="h-3 w-3" fill={liked ? "#A0522D" : "transparent"} color={liked ? "#A0522D" : "currentColor"} />
-                  {t("explore.like")}
-                  <span className="tabular-nums text-[#A0522D]/55">· {likeTotal}</span>
+                  <Heart
+                    className="h-4 w-4 shrink-0"
+                    strokeWidth={liked ? 0 : 2}
+                    fill={liked ? "#A0522D" : "transparent"}
+                    color="#A0522D"
+                  />
+                  <span>{t("explore.like")}</span>
+                  <span className="tabular-nums text-[#A0522D]/50">· {likeTotal}</span>
                 </button>
                 <button
                   type="button"

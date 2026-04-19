@@ -74,6 +74,8 @@
     "noDailyBitesHint": "도시 필터를 지우면 모든 최근 글을 볼 수 있어요.",
     "sayHi": "say hi!",
     "like": "좋아요",
+    "commentLikeAria": "이 댓글에 좋아요",
+    "commentUnlikeAria": "댓글 좋아요 취소",
     "reply": "답글",
     "activityAria": "알림",
     "activityUnreadAria": "알림, 읽지 않은 알림 있음",

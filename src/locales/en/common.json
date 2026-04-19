@@ -74,6 +74,8 @@
     "noDailyBitesHint": "Try clearing the city filter to see all recent posts.",
     "sayHi": "say hi!",
     "like": "Like",
+    "commentLikeAria": "Like this comment",
+    "commentUnlikeAria": "Remove like from this comment",
     "reply": "Reply",
     "activityAria": "Activity",
     "activityUnreadAria": "Activity, unread notifications",
