@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, Check, Heart, MessageCircle, MessageSquare, MoreVertical } from "lucide-react";
+import { Bell, Check, Heart, MessageCircle, MessageSquare, MoreVertical, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { ExperienceDetail } from "./ExperienceDetail";
@@ -50,7 +50,12 @@ import { useDisplayPostBody } from "@/lib/contentTranslation";
 import { listOwnInvites, type InviteRow } from "@/lib/invites";
 import { isSurimChaDemoUser, upsertSurimChaDemoInvites } from "@/lib/surimChaDemoInvites";
 import { getSupabaseClient } from "@/lib/supabase";
-import { fetchDailyBiteComments, insertDailyBiteComment, type RemoteDailyBiteCommentRow } from "@/lib/dailyBiteCommentsRemote";
+import {
+  deleteDailyBiteComment,
+  fetchDailyBiteComments,
+  insertDailyBiteComment,
+  type RemoteDailyBiteCommentRow,
+} from "@/lib/dailyBiteCommentsRemote";
 import { fetchPublicProfileByClerkId } from "@/lib/publicProfile";
 import { isSelectableCurrency } from "@/lib/currency";
 
@@ -1515,6 +1520,7 @@ function DailyBiteCommentsSection({
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [submitBusy, setSubmitBusy] = useState(false);
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const commentLikeHydrationGeneration = useRef(0);
 
@@ -1659,6 +1665,21 @@ function DailyBiteCommentsSection({
                   // optional
                 }
               })();
+            },
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "DELETE",
+              schema: "public",
+              table: "daily_bite_comments",
+              filter: `post_id=eq.${postId}`,
+            },
+            (payload) => {
+              const raw = payload.old as Record<string, unknown> | null;
+              const id = raw && typeof raw.id === "string" ? raw.id : null;
+              if (!id) return;
+              setComments((prev) => prev.filter((c) => c.id !== id));
             },
           )
           .subscribe();
@@ -1840,6 +1861,32 @@ function DailyBiteCommentsSection({
     }
   };
 
+  const deleteMyComment = async (comment: StoredComment) => {
+    if (comment.authorId !== user.id) return;
+    if (deleteBusyId) return;
+    if (!window.confirm(t("explore.commentDeleteConfirm"))) return;
+
+    commentLikeHydrationGeneration.current += 1;
+    const snapshot = comments;
+    setDeleteBusyId(comment.id);
+    setComments((prev) => prev.filter((c) => c.id !== comment.id));
+    try {
+      const token = await getToken({ template: "supabase" });
+      if (token) {
+        const ok = await deleteDailyBiteComment(token, comment.id);
+        if (!ok) {
+          setComments(snapshot);
+          toast.error(t("explore.commentDeleteFailed"));
+        }
+      }
+    } catch {
+      setComments(snapshot);
+      toast.error(t("explore.commentDeleteFailed"));
+    } finally {
+      setDeleteBusyId(null);
+    }
+  };
+
   const toggleCommentLike = async (comment: StoredComment) => {
     if (onRequireAuth && !onRequireAuth("sharing")) return;
     if (!user.id) return;
@@ -1895,6 +1942,7 @@ function DailyBiteCommentsSection({
           const likeTotal = c.likesCount ?? c.likedBy.length;
           const avatarSrc = getProfileAvatar(c.authorId) || c.authorImageUrl || undefined;
           const canOpen = c.authorId.startsWith("user_");
+          const isMine = c.authorId === user.id;
           return (
             <div key={c.id} className="rounded-xl border border-[#EDE4DB] bg-white/75 px-3 py-2.5">
               <div className="flex items-start gap-2.5">
@@ -1968,6 +2016,21 @@ function DailyBiteCommentsSection({
                 >
                   {t("explore.reply")}
                 </button>
+                {isMine ? (
+                  <button
+                    type="button"
+                    disabled={deleteBusyId === c.id}
+                    aria-label={t("explore.deleteMyCommentAria")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void deleteMyComment(c);
+                    }}
+                    className="inline-flex items-center gap-1 font-medium text-[#A0522D]/45 hover:text-red-700/90 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                    {t("explore.deleteMyComment")}
+                  </button>
+                ) : null}
               </div>
                 </div>
               </div>

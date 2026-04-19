@@ -48,3 +48,15 @@ export async function insertDailyBiteComment(
   const row = data as { id: string; created_at: string };
   return { id: row.id, createdAt: row.created_at };
 }
+
+/** Deletes a row in `daily_bite_comments` when RLS allows (author = JWT sub). Returns false on transport/RLS error. */
+export async function deleteDailyBiteComment(token: string, commentId: string): Promise<boolean> {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) return false;
+  const { error } = await supabase.from("daily_bite_comments").delete().eq("id", commentId);
+  if (error) {
+    console.warn("deleteDailyBiteComment", error);
+    return false;
+  }
+  return true;
+}
