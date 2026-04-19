@@ -39,6 +39,15 @@
     "sharingBody": "로그인하고 나만의 데일리 바이트를 세상과 공유해 보세요.",
     "cta": "로그인 또는 회원가입"
   },
+  "auth": {
+    "signUp": "회원가입",
+    "logIn": "로그인",
+    "signUpWithEmail": "이메일로 회원가입",
+    "logInWithEmail": "이메일로 로그인",
+    "welcomeSignUpCta": "회원가입하고 여정 에너지 받기",
+    "alreadyHaveAccountLogIn": "이미 계정이 있어요! 로그인",
+    "alreadyHaveAccountQuestionLogIn": "이미 계정이 있으신가요? 로그인"
+  },
   "activity": {
     "title": "알림",
     "closeAria": "알림 닫기",

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useClerk, useSignIn, useSignUp } from "@clerk/clerk-react";
 import { CookieLogo } from "./ui/CookieLogo";
 import { GoogleLogo, KakaoLogo, NaverLogo } from "./ui/SocialLogos";
@@ -41,6 +42,7 @@ function WelcomeAuthContent({
   initialAuthView?: boolean;
   initialMode?: FormMode;
 }) {
+  const { t } = useTranslation("common");
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { setActive } = useClerk();
@@ -184,7 +186,7 @@ function WelcomeAuthContent({
             }}
             className="h-11 w-full rounded-2xl border border-[#CDB8A7] bg-white text-sm font-semibold text-[#2A2420]"
           >
-            I already have an account! LOG IN
+            {t("auth.alreadyHaveAccountLogIn")}
           </button>
         </div>
       ) : inForm ? (
@@ -222,7 +224,7 @@ function WelcomeAuthContent({
               ? "Please wait..."
               : mode === "sign-up"
                 ? "Create Account"
-                : "Log In with Email"}
+                : t("auth.logInWithEmail")}
           </button>
           <button
             type="button"
@@ -248,7 +250,7 @@ function WelcomeAuthContent({
             }}
             className="h-12 w-full rounded-2xl bg-[#A0522D] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(160,82,45,0.32)]"
           >
-            Sign Up with Email
+            {t("auth.signUpWithEmail")}
           </button>
 
           <button
@@ -260,7 +262,7 @@ function WelcomeAuthContent({
             }}
             className="w-full text-center text-[11px] text-[#A98E79] underline-offset-2 hover:underline"
           >
-            Already have an account? Log In
+            {t("auth.alreadyHaveAccountQuestionLogIn")}
           </button>
 
           <div className="pt-1 text-center text-[11px] uppercase tracking-[0.14em] text-[#B89A80]">

@@ -39,6 +39,15 @@
     "sharingBody": "Join In-Bite to share your own 'Daily Bites' with the world.",
     "cta": "Log in or Sign up"
   },
+  "auth": {
+    "signUp": "Sign up",
+    "logIn": "Log in",
+    "signUpWithEmail": "Sign up with email",
+    "logInWithEmail": "Log in with email",
+    "welcomeSignUpCta": "Sign up & receive journey energy",
+    "alreadyHaveAccountLogIn": "I already have an account! Log in",
+    "alreadyHaveAccountQuestionLogIn": "Already have an account? Log in"
+  },
   "activity": {
     "title": "Activity",
     "closeAria": "Close activity",

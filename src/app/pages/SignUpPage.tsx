@@ -1,8 +1,10 @@
 import { SignUp } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { BrandMark } from "@/app/components/ui/CookieLogo";
 
 export function SignUpPage() {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
   return (
     <main className="min-h-[100svh] bg-[#FFFBF5] pb-24 pt-10 text-[#2A2420]">
@@ -21,7 +23,7 @@ export function SignUpPage() {
             className="text-[24px] font-semibold text-[#2A2420]"
             style={{ fontFamily: "'Patrick Hand', cursive" }}
           >
-            Sign up
+            {t("auth.signUp")}
           </div>
           <div className="mt-2 text-[13px] text-[#2A2420]/58">
             Create an account to start sharing your daily life.

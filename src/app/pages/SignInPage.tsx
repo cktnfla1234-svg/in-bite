@@ -1,8 +1,10 @@
 import { SignIn } from "@clerk/clerk-react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandMark } from "@/app/components/ui/CookieLogo";
 
 export function SignInPage() {
+  const { t } = useTranslation("common");
   const navigate = useNavigate();
   return (
     <main className="min-h-[100svh] bg-[#FDFAF5] pb-24 pt-10">
@@ -21,7 +23,7 @@ export function SignInPage() {
             className="text-[24px] font-semibold text-[#A0522D]"
             style={{ fontFamily: "'Patrick Hand', cursive" }}
           >
-            Log in
+            {t("auth.logIn")}
           </div>
           <div className="mt-2 text-[13px] text-[#A0522D]/60">
             Sign in to message hosts and grow your journey energy (BITE).

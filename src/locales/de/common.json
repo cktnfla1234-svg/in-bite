@@ -39,6 +39,15 @@
     "sharingBody": "Tritt In-Bite bei, um deine eigenen „Daily Bites“ mit der Welt zu teilen.",
     "cta": "Anmelden oder registrieren"
   },
+  "auth": {
+    "signUp": "Registrieren",
+    "logIn": "Anmelden",
+    "signUpWithEmail": "Mit E-Mail registrieren",
+    "logInWithEmail": "Mit E-Mail anmelden",
+    "welcomeSignUpCta": "Registrieren & Reiseenergie erhalten",
+    "alreadyHaveAccountLogIn": "Ich habe schon ein Konto! Anmelden",
+    "alreadyHaveAccountQuestionLogIn": "Schon ein Konto? Anmelden"
+  },
   "activity": {
     "title": "Aktivität",
     "closeAria": "Aktivität schließen",

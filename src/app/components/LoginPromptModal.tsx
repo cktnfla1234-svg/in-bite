@@ -54,14 +54,14 @@ export function LoginPromptModal({
                 onClick={() => onSignUp?.()}
                 className="h-12 w-full rounded-2xl bg-[#A0522D] text-sm font-semibold text-white"
               >
-                Sign up
+                {t("auth.signUp")}
               </button>
               <button
                 type="button"
                 onClick={() => onLogIn?.()}
                 className="h-11 w-full rounded-2xl border border-[#A0522D]/30 bg-white/80 text-sm font-semibold text-[#A0522D]"
               >
-                Log in
+                {t("auth.logIn")}
               </button>
               <button
                 type="button"
