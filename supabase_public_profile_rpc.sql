@@ -28,7 +28,8 @@ begin
     'profile_country_code', p.profile_country_code,
     'profile_mbti', p.profile_mbti,
     'profile_hobbies', p.profile_hobbies,
-    'profile_bio', p.profile_bio
+    'profile_bio', p.profile_bio,
+    'profile_gallery', coalesce(p.profile_gallery, '[]'::jsonb)
   )
   into r
   from public.profiles p

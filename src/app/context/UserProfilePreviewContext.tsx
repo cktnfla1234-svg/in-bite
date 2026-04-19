@@ -110,6 +110,7 @@ export function UserProfilePreviewProvider({
     fallbackName ||
     t("profilePreview.fallbackName");
   const imageUrl = snapshot?.image_url?.trim() || fallbackImage;
+  const galleryUrls = snapshot?.profile_gallery ?? [];
   const canSayHiFromPreview =
     Boolean(onSayHiHost) &&
     Boolean(clerkId?.trim().startsWith("user_")) &&
@@ -186,7 +187,7 @@ export function UserProfilePreviewProvider({
                 ) : showHardLoadError ? (
                   <p className="mt-2 text-[13px] text-[#A0522D]/70">{t("profilePreview.loadError")}</p>
                 ) : (
-                  <div className="mt-3 w-full space-y-2 text-left text-[13px] text-[#2C1A0E]/88">
+                  <div className="mt-3 max-h-[min(52vh,440px)] w-full space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain text-left text-[13px] text-[#2C1A0E]/88">
                     {!loading && !snapshot && (fallbackName?.trim() || fallbackImage?.trim()) ? (
                       <p className="text-center text-[11px] leading-relaxed text-[#A0522D]/55">
                         {t("profilePreview.serverExtrasHint")}
@@ -216,6 +217,21 @@ export function UserProfilePreviewProvider({
                         <span className="font-semibold text-[#A0522D]/85">{t("profilePreview.bio")}</span>{" "}
                         {snapshot.profile_bio?.trim() ? snapshot.profile_bio : t("profilePreview.fieldEmpty")}
                       </p>
+                    ) : null}
+                    {snapshot && galleryUrls.length > 0 ? (
+                      <div className="pt-2">
+                        <div className="text-[12px] font-semibold text-[#A0522D]/85">{t("profile.photos")}</div>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {galleryUrls.map((url, idx) => (
+                            <div
+                              key={`gallery-${idx}`}
+                              className="h-24 overflow-hidden rounded-[14px] border border-[#E5D8CC] bg-white"
+                            >
+                              <img src={url} alt="" className="h-full w-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 )}

@@ -10,7 +10,29 @@ export type PublicProfileSnapshot = {
   profile_mbti: string | null;
   profile_hobbies: string | null;
   profile_bio: string | null;
+  /** Normalized gallery image URLs or data URLs (from `profiles.profile_gallery`). */
+  profile_gallery: string[];
 };
+
+function parseProfileGallery(raw: unknown): string[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === "string" && Boolean(x.trim()));
+  }
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return [];
+    try {
+      const parsed = JSON.parse(s) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((x): x is string => typeof x === "string" && Boolean(x.trim()));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return [];
+}
 
 function parseRpcPayload(raw: unknown): PublicProfileSnapshot | null {
   if (raw == null || typeof raw !== "object") return null;
@@ -26,6 +48,7 @@ function parseRpcPayload(raw: unknown): PublicProfileSnapshot | null {
     profile_mbti: typeof o.profile_mbti === "string" ? o.profile_mbti : null,
     profile_hobbies: typeof o.profile_hobbies === "string" ? o.profile_hobbies : null,
     profile_bio: typeof o.profile_bio === "string" ? o.profile_bio : null,
+    profile_gallery: parseProfileGallery(o.profile_gallery),
   };
 }
 
