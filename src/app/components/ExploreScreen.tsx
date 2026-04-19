@@ -487,7 +487,8 @@ export function ExploreScreen({
   }, [sortedExperiences, selectedExperienceId]);
 
   const selectedDailyPost = useMemo(() => {
-    return filteredDailyPosts.find((post) => post.id === selectedDailyPostId) ?? filteredDailyPosts[0] ?? null;
+    if (!selectedDailyPostId) return null;
+    return filteredDailyPosts.find((post) => post.id === selectedDailyPostId) ?? null;
   }, [filteredDailyPosts, selectedDailyPostId]);
 
   useEffect(() => {
@@ -850,7 +851,7 @@ export function ExploreScreen({
               </button>
               {activityBell}
             </div>
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false}>
               <motion.div
                 key={selectedDailyPost.id}
                 initial={{ opacity: 0, y: 14, scale: 0.98 }}

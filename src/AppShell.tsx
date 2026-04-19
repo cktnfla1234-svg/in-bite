@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -420,62 +419,8 @@ export default function AppShell({
     };
   }, [activeTab]);
 
-  const screenMap: Record<Tab, ReactNode> = {
-    home: (
-      <HomeScreen
-        isSignedIn={isSignedIn}
-        onOpenAuth={() =>
-          setAuthState({
-            open: true,
-            initialAuthView: false,
-            initialMode: "default",
-          })
-        }
-        onSearch={handleSearch}
-      />
-    ),
-    explore: (
-      <ExploreScreen
-        initialCity={searchCity}
-        initialTaste={searchTaste}
-        section={exploreSection}
-        onSectionChange={setExploreSection}
-        onCardClick={handleCardClick}
-        onRequireAuth={(kind) => requireAuth(kind)}
-        onSayHi={(experience: Experience) => void openSayHiChat(`host:${experience.id}`, experience.hostName)}
-        onSayHiHost={({ hostId, hostName }) => void openSayHiChat(hostId, hostName)}
-        onInviteCompanion={() => {
-          setGroupChatInviteNonce((n) => n + 1);
-          setActiveTab("chat");
-          if (!location.pathname.startsWith("/chat/") && location.pathname !== "/messages") {
-            navigate("/messages");
-          }
-        }}
-        onOpenCreateDailyInbite={() => setCreateDailyInbiteOpen(true)}
-        activityHasUnread={activityUnread}
-        onOpenActivity={handleOpenActivity}
-        openDailyPostId={pendingDailyPostId}
-        onConsumedOpenDailyPost={() => setPendingDailyPostId(null)}
-        onOpenDailyPostRoute={(postId) => navigate(`/daily-bite/${encodeURIComponent(postId)}`)}
-      />
-    ),
-    chat: (
-      <ChatScreen
-        openGroupChatNonce={groupChatInviteNonce}
-        chatLaunch={chatLaunch}
-        onChatLaunchConsumed={handleChatLaunchConsumed}
-        myUserId={welcomeClerkUserId ?? "guest"}
-      />
-    ),
-    profile: (
-      <ProfileScreen
-        onOpenCreateTour={() => {
-          if (!requireAuth("sharing")) return;
-          setCreateOpen(true);
-        }}
-      />
-    ),
-  };
+  const tabPanelClass = (tab: Tab) =>
+    activeTab === tab ? "block w-full min-h-0 flex-1 flex flex-col" : "hidden";
 
   return (
     <PreferredCurrencyProvider>
@@ -496,14 +441,67 @@ export default function AppShell({
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [flex-basis:0]"
         style={{ paddingBottom: "calc(5.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
-        {/* flex-basis:0 + min-h-0: stable flex height on mobile; avoid key remount so child motion/layout state cannot blank all tabs */}
+        {/* Keep all tab roots mounted (display toggle) so Daily Bite / Framer exit cannot leave other tabs painting nothing. */}
         <div
           className="relative flex w-full flex-col"
           style={{
-            minHeight: "max(100%, calc(100dvh - 5.75rem - env(safe-area-inset-bottom, 0px)))",
+            minHeight: "calc(100dvh - 5.75rem - env(safe-area-inset-bottom, 0px))",
           }}
         >
-          {screenMap[activeTab]}
+          <div className={tabPanelClass("home")}>
+            <HomeScreen
+              isSignedIn={isSignedIn}
+              onOpenAuth={() =>
+                setAuthState({
+                  open: true,
+                  initialAuthView: false,
+                  initialMode: "default",
+                })
+              }
+              onSearch={handleSearch}
+            />
+          </div>
+          <div className={tabPanelClass("explore")}>
+            <ExploreScreen
+              initialCity={searchCity}
+              initialTaste={searchTaste}
+              section={exploreSection}
+              onSectionChange={setExploreSection}
+              onCardClick={handleCardClick}
+              onRequireAuth={(kind) => requireAuth(kind)}
+              onSayHi={(experience: Experience) => void openSayHiChat(`host:${experience.id}`, experience.hostName)}
+              onSayHiHost={({ hostId, hostName }) => void openSayHiChat(hostId, hostName)}
+              onInviteCompanion={() => {
+                setGroupChatInviteNonce((n) => n + 1);
+                setActiveTab("chat");
+                if (!location.pathname.startsWith("/chat/") && location.pathname !== "/messages") {
+                  navigate("/messages");
+                }
+              }}
+              onOpenCreateDailyInbite={() => setCreateDailyInbiteOpen(true)}
+              activityHasUnread={activityUnread}
+              onOpenActivity={handleOpenActivity}
+              openDailyPostId={pendingDailyPostId}
+              onConsumedOpenDailyPost={() => setPendingDailyPostId(null)}
+              onOpenDailyPostRoute={(postId) => navigate(`/daily-bite/${encodeURIComponent(postId)}`)}
+            />
+          </div>
+          <div className={tabPanelClass("chat")}>
+            <ChatScreen
+              openGroupChatNonce={groupChatInviteNonce}
+              chatLaunch={chatLaunch}
+              onChatLaunchConsumed={handleChatLaunchConsumed}
+              myUserId={welcomeClerkUserId ?? "guest"}
+            />
+          </div>
+          <div className={tabPanelClass("profile")}>
+            <ProfileScreen
+              onOpenCreateTour={() => {
+                if (!requireAuth("sharing")) return;
+                setCreateOpen(true);
+              }}
+            />
+          </div>
         </div>
       </div>
 
