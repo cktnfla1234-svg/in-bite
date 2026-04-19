@@ -6,6 +6,8 @@
     "profile": "프로필"
   },
   "loading": "불러오는 중...",
+  "price_zero_hint": "각자의 비용을 각자가 내요",
+  "floating_invite_hint": "나의 일상으로 초대하기",
   "common": {
     "close": "닫기",
     "notNow": "나중에",
@@ -15,6 +17,13 @@
     "delete": "삭제",
     "search": "검색",
     "submitSearch": "검색"
+  },
+  "inviteFields": {
+    "tourPriceFiat": "투어 금액 (현지 통화)",
+    "maxGuests": "최대 인원",
+    "meetupDateTime": "만남 날짜·시간",
+    "priceCurrency": "통화",
+    "journeyTimeline": "여정 타임라인"
   },
   "fab": {
     "createAria": "만들기"

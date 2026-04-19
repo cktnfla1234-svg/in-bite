@@ -70,6 +70,8 @@ type ExploreScreenProps = {
   openDailyPostId?: string | null;
   onConsumedOpenDailyPost?: () => void;
   onOpenDailyPostRoute?: (postId: string) => void;
+  /** Lets AppShell hide the global FAB while the Daily Bite edit dialog is open. */
+  onDailyBiteEditModalOpenChange?: (open: boolean) => void;
 };
 
 type ExploreMode = "feed" | "host" | "detail" | "dailyDetail";
@@ -112,6 +114,7 @@ export function ExploreScreen({
   openDailyPostId = null,
   onConsumedOpenDailyPost,
   onOpenDailyPostRoute,
+  onDailyBiteEditModalOpenChange,
 }: ExploreScreenProps) {
   const { preferredCurrency } = usePreferredCurrency();
   const { t } = useTranslation("common");
@@ -215,6 +218,16 @@ export function ExploreScreen({
       cancelled = true;
     };
   }, [user?.id, getToken, section]);
+
+  useEffect(() => {
+    onDailyBiteEditModalOpenChange?.(dailyBiteEditPost != null);
+  }, [dailyBiteEditPost, onDailyBiteEditModalOpenChange]);
+
+  useEffect(() => {
+    return () => {
+      onDailyBiteEditModalOpenChange?.(false);
+    };
+  }, [onDailyBiteEditModalOpenChange]);
 
   const activityBell = (
     <button

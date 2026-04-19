@@ -7,11 +7,12 @@ import { addLocalInvite } from "@/lib/localInvites";
 import { BITE_COST_CREATE_INVITE } from "@/lib/bitePolicy";
 import { applyBiteDeltaServer, fetchProfileBitesBalance } from "@/lib/profile";
 import { getWalletBalance, roundBiteDisplay, WALLET_BALANCE_SYNC } from "@/lib/wallet";
-import { formatFiat, fractionDigitsFor, type CurrencyCode } from "@/lib/currency";
+import { type CurrencyCode } from "@/lib/currency";
 import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
 import { CountryCitySelect } from "@/app/components/CountryCitySelect";
 import { buildStoredLocationEnglish } from "@/lib/locations/dataset";
 import { normalizeAppLocale } from "@/lib/i18n/appLocales";
+import { InvitePriceCapacityMeetupFields } from "@/app/components/InvitePriceCapacityMeetupFields";
 
 type CreateTourScreenProps = {
   onClose: () => void;
@@ -51,13 +52,6 @@ const emptyTimelineItem = (): TimelineItem => ({
   title: "",
   description: "",
 });
-
-/** Whole-number currencies (e.g. KRW): slider 0–300,000 in host units. */
-const SLIDER_MAX_WHOLE = 300_000;
-const SLIDER_STEP_WHOLE = 1_000;
-/** Decimal currencies: separate cap so the control stays usable. */
-const SLIDER_MAX_DECIMAL = 3_000;
-const SLIDER_STEP_DECIMAL = 5;
 
 export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   const { t, i18n } = useTranslation("common");
@@ -102,13 +96,6 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     () => [...TASTE_TAG_OPTIONS, ...customTasteTags],
     [customTasteTags],
   );
-
-  const { sliderMax, sliderStep } = useMemo(() => {
-    if (fractionDigitsFor(hostCurrency) === 0) {
-      return { sliderMax: SLIDER_MAX_WHOLE, sliderStep: SLIDER_STEP_WHOLE };
-    }
-    return { sliderMax: SLIDER_MAX_DECIMAL, sliderStep: SLIDER_STEP_DECIMAL };
-  }, [hostCurrency]);
 
   const toggleOption = (id: string) => {
     setIncluded((cur) => ({ ...cur, [id]: !cur[id] }));
@@ -328,14 +315,6 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   }, [preferredCurrency]);
 
   useEffect(() => {
-    setPriceAmount((p) => {
-      const capped = Math.min(Math.max(0, p), sliderMax);
-      const snapped = Math.round(capped / sliderStep) * sliderStep;
-      return Math.min(Math.max(0, snapped), sliderMax);
-    });
-  }, [sliderMax, sliderStep]);
-
-  useEffect(() => {
     if (!user?.id) {
       setBiteBalance(0);
       return;
@@ -531,39 +510,16 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         )}
 
         {step === 2 ? (
-          <div className="mt-6 rounded-[22px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
-            <div className="text-[12px] font-semibold text-[#A0522D]/70">Tour price (fiat)</div>
-            <div className="mt-3 rounded-xl border border-[#EDD5C0] bg-white px-3 py-4">
-              <div className="text-center">
-                <div className="text-[11px] font-semibold text-[#A0522D]/65">{hostCurrency}</div>
-                <div className="mt-1 text-[clamp(1.15rem,4.5vw,1.45rem)] font-semibold leading-tight text-[#A0522D] tabular-nums">
-                  {formatFiat(priceAmount, hostCurrency)}
-                </div>
-              </div>
-              <label className="mt-4 block" htmlFor="invite-price-slider">
-                <span className="sr-only">Invite price</span>
-                <input
-                  id="invite-price-slider"
-                  type="range"
-                  min={0}
-                  max={sliderMax}
-                  step={sliderStep}
-                  value={Math.min(priceAmount, sliderMax)}
-                  onChange={(e) => {
-                    const raw = Number(e.target.value);
-                    if (!Number.isFinite(raw)) return;
-                    const snapped = Math.round(raw / sliderStep) * sliderStep;
-                    setPriceAmount(Math.min(Math.max(0, snapped), sliderMax));
-                  }}
-                  className="mt-3 h-3 w-full cursor-pointer accent-[#A0522D]"
-                />
-              </label>
-              <div className="mt-2 flex items-center justify-between text-[10px] font-medium text-[#A0522D]/50 tabular-nums">
-                <span>{formatFiat(0, hostCurrency)}</span>
-                <span>{formatFiat(sliderMax, hostCurrency)}</span>
-              </div>
-            </div>
-          </div>
+          <InvitePriceCapacityMeetupFields
+            className="mt-6"
+            hostCurrency={hostCurrency}
+            priceAmount={priceAmount}
+            onPriceAmountChange={setPriceAmount}
+            capacity={capacity}
+            onCapacityChange={setCapacity}
+            meetupAt={meetupAt}
+            onMeetupAtChange={setMeetupAt}
+          />
         ) : null}
 
         {step === 2 ? (

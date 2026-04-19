@@ -6,6 +6,8 @@
     "profile": "Profil"
   },
   "loading": "Wird geladen...",
+  "price_zero_hint": "Getrennte Rechnungen (jeder zahlt selbst)",
+  "floating_invite_hint": "In meinen Alltag einladen",
   "common": {
     "close": "Schließen",
     "notNow": "Nicht jetzt",
@@ -15,6 +17,13 @@
     "delete": "Löschen",
     "search": "Suchen",
     "submitSearch": "Suchen"
+  },
+  "inviteFields": {
+    "tourPriceFiat": "Tourpreis (Fiat)",
+    "maxGuests": "Max. Gäste",
+    "meetupDateTime": "Datum & Uhrzeit",
+    "priceCurrency": "Währung",
+    "journeyTimeline": "Reiseverlauf"
   },
   "fab": {
     "createAria": "Erstellen"

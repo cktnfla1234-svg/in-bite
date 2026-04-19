@@ -6,10 +6,26 @@ import ko from "@/locales/ko/common.json";
 import de from "@/locales/de/common.json";
 import { APP_LOCALES, normalizeAppLocale, type AppLocale } from "./appLocales";
 
+/** Same order as `detection` (localStorage → navigator) so the first paint matches persisted/browser choice. */
+function readInitialAppLocale(): AppLocale {
+  if (typeof window === "undefined") return "en";
+  try {
+    const raw = window.localStorage.getItem("inbite_locale");
+    if (raw) return normalizeAppLocale(raw);
+  } catch {
+    // ignore
+  }
+  if (typeof navigator !== "undefined" && navigator.language) {
+    return normalizeAppLocale(navigator.language);
+  }
+  return "en";
+}
+
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
+    lng: readInitialAppLocale(),
     fallbackLng: "en",
     supportedLngs: [...APP_LOCALES],
     nonExplicitSupportedLngs: true,

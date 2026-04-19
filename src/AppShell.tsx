@@ -103,6 +103,7 @@ export default function AppShell({
   const [searchCity, setSearchCity] = useState("");
   const [searchTaste, setSearchTaste] = useState<string | null>(null);
   const [exploreSection, setExploreSection] = useState<"invitations" | "dailyBites">(initialExploreSection);
+  const [dailyBiteEditModalOpen, setDailyBiteEditModalOpen] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState<{ open: boolean; kind: LoginPromptKind }>({
     open: false,
     kind: "chat",
@@ -484,6 +485,7 @@ export default function AppShell({
               openDailyPostId={pendingDailyPostId}
               onConsumedOpenDailyPost={() => setPendingDailyPostId(null)}
               onOpenDailyPostRoute={(postId) => navigate(`/daily-bite/${encodeURIComponent(postId)}`)}
+              onDailyBiteEditModalOpenChange={setDailyBiteEditModalOpen}
             />
           </div>
           <div className={tabPanelClass("chat")}>
@@ -524,7 +526,7 @@ export default function AppShell({
         }}
       />
 
-      {activeTab !== "chat" ? (
+      {activeTab !== "chat" && !dailyBiteEditModalOpen ? (
         <FloatingActionButton
           autoInvitationTooltip={activeTab === "explore" && exploreSection === "invitations"}
           onClick={() => {

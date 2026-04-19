@@ -14,7 +14,7 @@ type FloatingActionButtonProps = {
 };
 
 export function FloatingActionButton({ onClick, autoInvitationTooltip = false }: FloatingActionButtonProps) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const showTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
@@ -47,23 +47,42 @@ export function FloatingActionButton({ onClick, autoInvitationTooltip = false }:
       dismiss();
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    let cancelled = false;
+    let onInitialized: (() => void) | null = null;
 
-    showTimerRef.current = window.setTimeout(() => {
-      showTimerRef.current = null;
-      setBubbleVisible(true);
-      hideTimerRef.current = window.setTimeout(() => {
-        hideTimerRef.current = null;
-        setBubbleVisible(false);
-      }, TOOLTIP_HOLD_MS + TOOLTIP_FADE_IN_MS);
-    }, TAB_ENTRY_DELAY_MS);
+    const armAfterI18nReady = () => {
+      if (cancelled) return;
+      window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+
+      showTimerRef.current = window.setTimeout(() => {
+        showTimerRef.current = null;
+        setBubbleVisible(true);
+        hideTimerRef.current = window.setTimeout(() => {
+          hideTimerRef.current = null;
+          setBubbleVisible(false);
+        }, TOOLTIP_HOLD_MS + TOOLTIP_FADE_IN_MS);
+      }, TAB_ENTRY_DELAY_MS);
+    };
+
+    if (i18n.isInitialized) {
+      armAfterI18nReady();
+    } else {
+      onInitialized = () => {
+        if (cancelled) return;
+        if (onInitialized) i18n.off("initialized", onInitialized);
+        armAfterI18nReady();
+      };
+      i18n.on("initialized", onInitialized);
+    }
 
     return () => {
+      cancelled = true;
+      if (onInitialized) i18n.off("initialized", onInitialized);
       clearTimers();
       window.removeEventListener("scroll", onScroll, { capture: true });
       setBubbleVisible(false);
     };
-  }, [autoInvitationTooltip]);
+  }, [autoInvitationTooltip, i18n.isInitialized, i18n]);
 
   return (
     <div className="pointer-events-none fixed right-4 bottom-20 z-[88] flex items-center gap-2.5">
@@ -79,7 +98,7 @@ export function FloatingActionButton({ onClick, autoInvitationTooltip = false }:
             transition={{ duration: 0.35, ease: "easeOut" }}
             className="pointer-events-none rounded-full border border-[#A0522D] bg-white/90 px-5 py-2.5 text-[14px] font-semibold text-[#A0522D] shadow-[0_14px_35px_rgba(0,0,0,0.08)]"
           >
-            {t("appShell.makeMyInbite")}
+            {t("floating_invite_hint")}
           </motion.div>
         ) : null}
       </AnimatePresence>

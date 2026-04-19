@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   convertFiatAmount,
   formatFiat,
@@ -27,12 +28,16 @@ export function FiatPriceBadge({
   variant = "pill",
   className = "",
 }: FiatPriceBadgeProps) {
+  const { t } = useTranslation("common");
   const [state, setState] = useState<DisplayState>({ kind: "loading" });
+  const isZeroPrice = Number.isFinite(priceAmount) && priceAmount === 0;
 
   useEffect(() => {
     let cancelled = false;
     const host = hostCurrency.toUpperCase();
     const pref = preferredCurrency.toUpperCase();
+
+    if (isZeroPrice) return;
 
     if (!Number.isFinite(priceAmount) || priceAmount < 0) {
       setState({ kind: "fallback", text: formatFiat(0, host) });
@@ -68,7 +73,35 @@ export function FiatPriceBadge({
     return () => {
       cancelled = true;
     };
-  }, [priceAmount, hostCurrency, preferredCurrency]);
+  }, [priceAmount, hostCurrency, preferredCurrency, isZeroPrice]);
+
+  if (isZeroPrice) {
+    const hint = t("price_zero_hint");
+    if (variant === "inline") {
+      return (
+        <div
+          className={`flex items-center justify-end gap-1 text-right ${className}`}
+          title={hint}
+        >
+          <span className="shrink-0 text-[11px] leading-none" aria-hidden>
+            🍪
+          </span>
+          <span className="max-w-[12rem] text-[10px] font-medium leading-snug text-gray-500">{hint}</span>
+        </div>
+      );
+    }
+    return (
+      <div
+        className={`inline-flex max-w-[min(100%,240px)] items-center gap-1.5 rounded-full bg-white/85 px-3 py-1 ${className}`}
+        title={hint}
+      >
+        <span className="shrink-0 text-[11px] leading-none" aria-hidden>
+          🍪
+        </span>
+        <span className="text-[10px] font-medium leading-snug text-gray-500">{hint}</span>
+      </div>
+    );
+  }
 
   const inner =
     state.kind === "loading" ? (

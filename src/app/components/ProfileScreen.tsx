@@ -28,6 +28,10 @@ import { updateInvite } from "@/lib/invites";
 import { SELECTABLE_CURRENCIES, type CurrencyCode } from "@/lib/currency";
 import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
 import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
+import {
+  InvitePriceCapacityMeetupFields,
+  meetupForDatetimeInput,
+} from "@/app/components/InvitePriceCapacityMeetupFields";
 import i18n from "@/lib/i18n/config";
 import { getCountryNameEn } from "@/lib/locations/dataset";
 import { formatProfileLocationDisplay } from "@/lib/locations/profileDisplay";
@@ -73,6 +77,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   const [editingPriceAmount, setEditingPriceAmount] = useState(45000);
   const [editingCapacity, setEditingCapacity] = useState(2);
   const [editingMeetupAt, setEditingMeetupAt] = useState("");
+  const [editingHostCurrency, setEditingHostCurrency] = useState<CurrencyCode>("KRW");
   const [editingTasteTags, setEditingTasteTags] = useState<string[]>([]);
   const [editingTimeline, setEditingTimeline] = useState<LocalInviteItineraryItem[]>([]);
   const [editingInviteSaving, setEditingInviteSaving] = useState(false);
@@ -476,7 +481,8 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
     setEditingDescription(invite.description);
     setEditingPriceAmount(invite.priceAmount ?? 45000);
     setEditingCapacity(invite.capacity ?? 2);
-    setEditingMeetupAt(invite.meetupAt ?? "");
+    setEditingMeetupAt(meetupForDatetimeInput(invite.meetupAt ?? ""));
+    setEditingHostCurrency(invite.hostCurrency ?? preferredCurrency);
     setEditingTasteTags(invite.tasteTags ?? []);
     setEditingTimeline(invite.itinerary ?? []);
   };
@@ -492,6 +498,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
       priceAmount: Math.max(0, editingPriceAmount || 0),
       capacity: Math.max(1, editingCapacity || 1),
       meetupAt: editingMeetupAt,
+      hostCurrency: editingHostCurrency,
       tasteTags: editingTasteTags.length ? editingTasteTags : ["Cafe Hopping"],
       itinerary: editingTimeline.length
         ? editingTimeline
@@ -519,8 +526,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
             includedOptions:
               inviteeHistory.find((x) => x.id === editingInviteId)?.includedOptions ?? [],
             priceAmount: Number(patch.priceAmount ?? 0),
-            hostCurrency:
-              inviteeHistory.find((x) => x.id === editingInviteId)?.hostCurrency ?? "KRW",
+            hostCurrency: editingHostCurrency,
             capacity: Number(patch.capacity ?? 2),
             meetupAt: String(patch.meetupAt ?? ""),
           },
@@ -945,29 +951,16 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               onChange={(e) => setEditingDescription(e.target.value)}
               placeholder={t("profile.descriptionPh")}
             />
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <input
-                type="number"
-                min={0}
-                className="rounded-2xl border border-[#EDD5C0] bg-white px-4 py-3 text-[15px] outline-none"
-                value={editingPriceAmount}
-                onChange={(e) => setEditingPriceAmount(Number(e.target.value))}
-                placeholder="Price (BITE)"
-              />
-              <input
-                type="number"
-                min={1}
-                className="rounded-2xl border border-[#EDD5C0] bg-white px-4 py-3 text-[15px] outline-none"
-                value={editingCapacity}
-                onChange={(e) => setEditingCapacity(Number(e.target.value))}
-                placeholder="Capacity"
-              />
-            </div>
-            <input
-              type="datetime-local"
-              className="mt-3 w-full rounded-2xl border border-[#EDD5C0] bg-white px-4 py-3 text-[15px] outline-none"
-              value={editingMeetupAt}
-              onChange={(e) => setEditingMeetupAt(e.target.value)}
+            <InvitePriceCapacityMeetupFields
+              className="mt-4"
+              hostCurrency={editingHostCurrency}
+              onHostCurrencyChange={setEditingHostCurrency}
+              priceAmount={editingPriceAmount}
+              onPriceAmountChange={setEditingPriceAmount}
+              capacity={editingCapacity}
+              onCapacityChange={setEditingCapacity}
+              meetupAt={editingMeetupAt}
+              onMeetupAtChange={setEditingMeetupAt}
             />
             <div className="mt-4 flex flex-wrap gap-2">
               {TASTE_TAG_OPTIONS.map((tag) => {
@@ -994,7 +987,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               })}
             </div>
             <div className="mt-4 rounded-2xl border border-[#EDD5C0] bg-white/70 p-3">
-              <div className="text-[13px] font-semibold text-[#A0522D]">DateTime & Itinerary</div>
+              <div className="text-[13px] font-semibold text-[#A0522D]">{t("inviteFields.journeyTimeline")}</div>
               <div className="mt-3 space-y-2">
                 {editingTimeline.map((row, idx) => (
                   <div key={`${idx}-${row.title}`} className="grid grid-cols-3 gap-2">
