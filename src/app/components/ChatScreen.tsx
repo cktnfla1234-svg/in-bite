@@ -8,17 +8,22 @@ import { ChatRoomScreen } from "./ChatRoomScreen";
 import {
   createGroupChatWithMembers,
   fetchGroupChatParticipantsRemote,
+  fetchRemoteMessagesForRoom,
   isGroupRoomId,
   joinGroupChatRoomRemote,
   listChatRooms,
   listRoomMessages,
   mergeParticipantsIntoLocalGroupRoom,
+  mergeRemoteMessagesIntoLocal,
+  mergeSingleRemoteMessageFromPayload,
   parseDirectRoomPeers,
   sendChatMessage,
   syncChatMessageToSupabase,
   syncGroupChatRoomToSupabase,
   type ChatRoomRecord,
 } from "@/lib/chat";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { getSupabaseClient } from "@/lib/supabase";
 import { useUserProfilePreview } from "@/app/context/UserProfilePreviewContext";
 import { getProfileAvatar, subscribeProfileAvatarSync } from "@/lib/profileAvatarStore";
 import { prefetchPublicProfileAvatars } from "@/lib/publicProfile";
@@ -55,6 +60,7 @@ export function ChatScreen({
   const { openUserProfile } = useUserProfilePreview();
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatRoomRecord[]>([]);
+  const [messageSyncTick, setMessageSyncTick] = useState(0);
   const [avatarTick, setAvatarTick] = useState(0);
   const consumedLaunchNonce = useRef<number | null>(null);
   const displayName =
@@ -131,8 +137,59 @@ export function ChatScreen({
 
   const activeMessages = useMemo(
     () => (activeChatId ? listRoomMessages(activeChatId) : []),
-    [activeChatId, chats],
+    [activeChatId, chats, messageSyncTick],
   );
+
+  /** Fetch + merge remote messages; Supabase Realtime INSERT + poll fallback. */
+  useEffect(() => {
+    if (!activeChatId || myUserId === "guest") return;
+    let cancelled = false;
+    let pollTimer: number | undefined;
+    let channel: RealtimeChannel | null = null;
+    let supabaseClient: ReturnType<typeof getSupabaseClient> | null = null;
+
+    const pull = async () => {
+      const token = await getToken({ template: "supabase" });
+      if (!token || cancelled) return;
+      const remote = await fetchRemoteMessagesForRoom(activeChatId, token);
+      if (cancelled) return;
+      if (mergeRemoteMessagesIntoLocal(activeChatId, remote)) {
+        setMessageSyncTick((n) => n + 1);
+        setChats(listChatRooms());
+      }
+    };
+
+    void (async () => {
+      await pull();
+      if (cancelled) return;
+      const token = await getToken({ template: "supabase" });
+      if (!token || cancelled) return;
+      supabaseClient = getSupabaseClient(token);
+      if (!supabaseClient) return;
+      channel = supabaseClient
+        .channel(`room-messages:${activeChatId}:${Date.now()}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload) => {
+            const row = payload.new as Record<string, unknown>;
+            if (String(row.room_id ?? "") !== activeChatId) return;
+            if (mergeSingleRemoteMessageFromPayload(activeChatId, row)) {
+              setMessageSyncTick((n) => n + 1);
+              setChats(listChatRooms());
+            }
+          },
+        )
+        .subscribe();
+      pollTimer = window.setInterval(() => void pull(), 12000);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer != null) window.clearInterval(pollTimer);
+      if (supabaseClient && channel) void supabaseClient.removeChannel(channel);
+    };
+  }, [activeChatId, myUserId, getToken]);
 
   useEffect(() => {
     if (!activeChatId || !activeChat || activeChat.type !== "group" || myUserId === "guest") return;
@@ -196,7 +253,7 @@ export function ChatScreen({
           activeChat.type === "group"
             ? (activeChat.participantIds.find((id) => id !== myUserId) ?? "group")
             : (activeChat.participantIds.find((id) => id !== myUserId) ?? "host");
-        sendChatMessage({
+        const msg = sendChatMessage({
           roomId: chatId,
           senderId: myUserId,
           receiverId,
@@ -204,7 +261,7 @@ export function ChatScreen({
           kind: "text",
         });
         setChats(listChatRooms());
-        if (activeChat.type === "group" && myUserId !== "guest") {
+        if (myUserId !== "guest") {
           void getToken({ template: "supabase" }).then((token) => {
             if (!token) return;
             void syncChatMessageToSupabase({
@@ -213,6 +270,10 @@ export function ChatScreen({
               receiverId,
               content: text,
               accessToken: token,
+              messageId: msg.id,
+              kind: "text",
+              createdAtISO: msg.createdAt,
+              participantClerkIds: activeChat.participantIds,
             });
           });
         }
@@ -222,7 +283,7 @@ export function ChatScreen({
           activeChat.type === "group"
             ? (activeChat.participantIds.find((id) => id !== myUserId) ?? "group")
             : (activeChat.participantIds.find((id) => id !== myUserId) ?? "host");
-        sendChatMessage({
+        const msg = sendChatMessage({
           roomId: chatId,
           senderId: myUserId,
           receiverId,
@@ -230,7 +291,7 @@ export function ChatScreen({
           kind,
         });
         setChats(listChatRooms());
-        if (activeChat.type === "group" && myUserId !== "guest" && kind !== "payment_request") {
+        if (myUserId !== "guest") {
           void getToken({ template: "supabase" }).then((token) => {
             if (!token) return;
             void syncChatMessageToSupabase({
@@ -239,6 +300,10 @@ export function ChatScreen({
               receiverId,
               content,
               accessToken: token,
+              messageId: msg.id,
+              kind,
+              createdAtISO: msg.createdAt,
+              participantClerkIds: activeChat.participantIds,
             });
           });
         }
@@ -252,7 +317,7 @@ export function ChatScreen({
         const name = displayName || t("chat.fallbackDisplayName");
         const line = t("chat.companionInviteLine", { name });
         const content = opts?.note ? `${line}\n\n${opts.note}` : line;
-        sendChatMessage({
+        const msg = sendChatMessage({
           roomId: activeChat.id,
           senderId: myUserId,
           receiverId,
@@ -260,7 +325,7 @@ export function ChatScreen({
           kind: "companion_invite",
         });
         setChats(listChatRooms());
-        if (activeChat.type === "group" && myUserId !== "guest") {
+        if (myUserId !== "guest") {
           void getToken({ template: "supabase" }).then((token) => {
             if (!token) return;
             void syncChatMessageToSupabase({
@@ -269,6 +334,10 @@ export function ChatScreen({
               receiverId,
               content,
               accessToken: token,
+              messageId: msg.id,
+              kind: "companion_invite",
+              createdAtISO: msg.createdAt,
+              participantClerkIds: activeChat.participantIds,
             });
           });
         }
@@ -292,13 +361,7 @@ export function ChatScreen({
               }
               const title = activeChat.title?.trim() || t("chat.groupChatTitle");
               const roomId = createGroupChatWithMembers(peers, title);
-              try {
-                const token = await getToken({ template: "supabase" });
-                if (token) await syncGroupChatRoomToSupabase(roomId, peers, token);
-              } catch {
-                /* ignore */
-              }
-              sendChatMessage({
+              const sys = sendChatMessage({
                 roomId,
                 senderId: myUserId,
                 receiverId: peers.find((p) => p !== myUserId) ?? "group",
@@ -306,6 +369,25 @@ export function ChatScreen({
                 kind: "system",
               });
               setChats(listChatRooms());
+              try {
+                const token = await getToken({ template: "supabase" });
+                if (token) {
+                  await syncGroupChatRoomToSupabase(roomId, peers, token);
+                  await syncChatMessageToSupabase({
+                    roomId,
+                    senderId: myUserId,
+                    receiverId: peers.find((p) => p !== myUserId) ?? "group",
+                    content: sys.content,
+                    accessToken: token,
+                    messageId: sys.id,
+                    kind: "system",
+                    createdAtISO: sys.createdAt,
+                    participantClerkIds: peers,
+                  });
+                }
+              } catch {
+                /* ignore */
+              }
               setActiveChatId(roomId);
               navigate(`/chat/${encodeURIComponent(roomId)}`);
               toast.success(t("chat.groupTripOpenedToast"));
