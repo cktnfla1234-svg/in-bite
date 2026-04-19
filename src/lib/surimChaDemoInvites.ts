@@ -8,8 +8,16 @@ type ClerkUserLike = {
   username?: string | null;
 };
 
-/** Stable ids so we can upsert without duplicating. */
-export const SURIM_DEMO_INVITE_IDS = ["surim-demo-cafe-books", "surim-demo-vegan-seoul"] as const;
+/**
+ * Stable ids aligned with `supabase_seed_surim_demo_invites.sql` so server + local stay one card each.
+ * Legacy string ids are stripped on sync so old devices do not keep duplicate rows.
+ */
+export const SURIM_DEMO_INVITE_IDS = [
+  "a1000000-0000-4000-8000-000000000001",
+  "a1000000-0000-4000-8000-000000000002",
+] as const;
+
+const LEGACY_SURIM_DEMO_INVITE_IDS = ["surim-demo-cafe-books", "surim-demo-vegan-seoul"] as const;
 
 /**
  * Matches the Surim Cha demo account (Clerk display name).
@@ -118,7 +126,7 @@ export function upsertSurimChaDemoInvites(user: ClerkUserLike): void {
     "Surim Cha";
 
   const demos = buildSurimDemoInvites(user.id, display);
-  const demoIdSet = new Set<string>(SURIM_DEMO_INVITE_IDS);
+  const demoIdSet = new Set<string>([...SURIM_DEMO_INVITE_IDS, ...LEGACY_SURIM_DEMO_INVITE_IDS]);
   const rest = getLocalInvites().filter((i) => !demoIdSet.has(i.id));
   const next = [...demos, ...rest];
   window.localStorage.setItem("inbite:local-invites", JSON.stringify(next));
