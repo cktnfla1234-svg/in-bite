@@ -155,7 +155,7 @@ export function CreateDailyInbiteSheet({ onClose }: CreateDailyInbiteSheetProps)
   };
 
   return (
-    <section className="flex max-h-[min(88dvh,calc(100dvh-1.5rem))] flex-col overflow-hidden rounded-t-[28px] bg-[#FDFAF5] shadow-[0_-16px_45px_rgba(0,0,0,0.12)]">
+    <section className="flex max-h-[min(88dvh,calc(100dvh-1.5rem))] flex-col overflow-hidden rounded-t-[28px] bg-[#FDFAF5] shadow-[0_-16px_45px_rgba(0,0,0,0.12)] sm:max-h-[min(92dvh,720px)]">
       <div className="shrink-0 px-5 pt-6">
         <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-[#E6D3C3]" />
         <h2
@@ -166,90 +166,93 @@ export function CreateDailyInbiteSheet({ onClose }: CreateDailyInbiteSheetProps)
         </h2>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-6">
-        <div className="mt-5 space-y-4 pb-4">
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#A0522D]/80">City</span>
-            <input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[14px] text-[#2C1A0E] outline-none"
-              placeholder="e.g. Seoul"
-            />
-          </label>
+      {/* Single scrollport: form scrolls above; actions stay sticky at bottom of this viewport (clears app bottom nav / FAB when sheet stacks under chrome). */}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-5">
+          <div className="mt-5 space-y-4 pb-6 max-sm:pb-32 sm:pb-10">
+            <label className="block">
+              <span className="text-[12px] font-semibold text-[#A0522D]/80">City</span>
+              <input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[14px] text-[#2C1A0E] outline-none"
+                placeholder="e.g. Seoul"
+              />
+            </label>
 
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#A0522D]/80">Daily inbite</span>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              className="mt-2 h-32 w-full resize-none rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[14px] leading-6 text-[#2C1A0E] outline-none"
-              placeholder="What happened today?"
-            />
-          </label>
+            <label className="block">
+              <span className="text-[12px] font-semibold text-[#A0522D]/80">Daily inbite</span>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="mt-2 h-32 w-full resize-none rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[14px] leading-6 text-[#2C1A0E] outline-none"
+                placeholder="What happened today?"
+              />
+            </label>
 
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#A0522D]/80">Photos (up to 6)</span>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              disabled={isReadingPhotos || photoUrls.length >= 6}
-              onChange={(e) => {
-                void handlePhotoPick(e.target.files);
-                e.currentTarget.value = "";
-              }}
-              className="mt-2 block w-full rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[13px] text-[#2C1A0E] disabled:opacity-60"
-            />
-            {isReadingPhotos ? <p className="mt-1 text-[11px] text-[#A0522D]/60">Processing photos...</p> : null}
-            {photoUrls.length ? (
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {photoUrls.map((url, idx) => (
-                  <div key={`${idx}-${url.slice(0, 12)}`} className="relative overflow-hidden rounded-xl border border-[#EDD5C0] bg-white">
-                    <img src={url} alt={`Daily bite upload ${idx + 1}`} className="h-20 w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPhotoUrls((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute right-1 top-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </label>
+            <label className="block">
+              <span className="text-[12px] font-semibold text-[#A0522D]/80">Photos (up to 6)</span>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                disabled={isReadingPhotos || photoUrls.length >= 6}
+                onChange={(e) => {
+                  void handlePhotoPick(e.target.files);
+                  e.currentTarget.value = "";
+                }}
+                className="mt-2 block w-full rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[13px] text-[#2C1A0E] disabled:opacity-60"
+              />
+              {isReadingPhotos ? <p className="mt-1 text-[11px] text-[#A0522D]/60">Processing photos...</p> : null}
+              {photoUrls.length ? (
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {photoUrls.map((url, idx) => (
+                    <div key={`${idx}-${url.slice(0, 12)}`} className="relative overflow-hidden rounded-xl border border-[#EDD5C0] bg-white">
+                      <img src={url} alt={`Daily bite upload ${idx + 1}`} className="h-20 w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setPhotoUrls((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute right-1 top-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </label>
 
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#A0522D]/80">Short bio (optional)</span>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="mt-2 h-20 w-full resize-none rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[13px] leading-5 text-[#2C1A0E] outline-none"
-              placeholder="A line about you"
-            />
-          </label>
-        </div>
-      </div>
+            <label className="block">
+              <span className="text-[12px] font-semibold text-[#A0522D]/80">Short bio (optional)</span>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="mt-2 h-20 w-full resize-none rounded-2xl border border-[#EDD5C0] bg-white/80 px-4 py-3 text-[13px] leading-5 text-[#2C1A0E] outline-none"
+                placeholder="A line about you"
+              />
+            </label>
+          </div>
 
-      <div className="shrink-0 border-t border-[#EDD5C0]/70 bg-[#FDFAF5]/98 px-5 pt-3 backdrop-blur-sm pb-[max(1rem,calc(0.75rem+env(safe-area-inset-bottom,0px)))]">
-        {error ? <p className="mb-3 text-[12px] text-[#B54545]">{error}</p> : null}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-2xl border border-[#EDD5C0] bg-white px-4 py-3 text-[13px] font-semibold text-[#A0522D]"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isReadingPhotos || submitBusy}
-            className="flex-1 rounded-2xl bg-[#A0522D] px-4 py-3 text-[13px] font-semibold text-white shadow-[0_10px_28px_rgba(160,82,45,0.3)] disabled:opacity-60"
-          >
-            {submitBusy ? "Posting…" : isReadingPhotos ? "Preparing photos..." : "Post Daily Inbite"}
-          </button>
+          <div className="sticky bottom-0 z-10 -mx-5 border-t border-[#EDD5C0]/80 bg-[#FDFAF5]/98 px-5 pt-3 shadow-[0_-10px_30px_rgba(42,36,32,0.08)] backdrop-blur-sm max-sm:pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+5.75rem))] sm:pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))]">
+            {error ? <p className="mb-3 text-[12px] text-[#B54545]">{error}</p> : null}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-2xl border border-[#EDD5C0] bg-white px-4 py-3 text-[13px] font-semibold text-[#A0522D]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isReadingPhotos || submitBusy}
+                className="flex-1 rounded-2xl bg-[#A0522D] px-4 py-3 text-[13px] font-semibold text-white shadow-[0_10px_28px_rgba(160,82,45,0.3)] disabled:opacity-60"
+              >
+                {submitBusy ? "Posting…" : isReadingPhotos ? "Preparing photos..." : "Post Daily Inbite"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

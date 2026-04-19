@@ -363,7 +363,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       ref={containerRef}
       className="mx-auto max-h-[90svh] w-full max-w-[560px] overflow-y-auto rounded-t-[28px] bg-[#FDFAF5] shadow-[0_-20px_70px_rgba(0,0,0,0.25)]"
     >
-      <div className="px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4">
+      <div className="px-5 pt-4 max-sm:pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem+1.25rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
         <div className="flex items-center gap-3">
           <button
             type="button"
