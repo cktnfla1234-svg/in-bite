@@ -16,7 +16,7 @@ export async function registerAppServiceWorker() {
   return navigator.serviceWorker.register("/sw.js");
 }
 
-export async function subscribeWebPush(token: string): Promise<PushSubscriptionJSON | null> {
+export async function subscribeWebPush(token: string, clerkId: string): Promise<PushSubscriptionJSON | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) return null;
   const vapidKey = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY;
   if (!vapidKey) return null;
@@ -34,9 +34,7 @@ export async function subscribeWebPush(token: string): Promise<PushSubscriptionJ
   const json = subscription.toJSON();
 
   const supabase = getSupabaseClient(token);
-  const { data } = await supabase.auth.getUser();
-  const clerkId = data.user?.id;
-  if (!clerkId) return null;
+  if (!supabase || !clerkId.trim()) return json;
 
   await supabase
     .from("profiles")

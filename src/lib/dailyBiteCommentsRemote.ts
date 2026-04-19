@@ -10,6 +10,7 @@ export type RemoteDailyBiteCommentRow = {
 
 export async function fetchDailyBiteComments(token: string, postId: string): Promise<RemoteDailyBiteCommentRow[]> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("daily_bite_comments")
     .select("id, author_clerk_id, author_name, body, created_at")
@@ -28,6 +29,7 @@ export async function insertDailyBiteComment(
   input: { postId: string; authorClerkId: string; authorName: string; body: string },
 ): Promise<{ id: string; createdAt: string } | null> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("daily_bite_comments")
     .insert({

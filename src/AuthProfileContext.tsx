@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { isSupabaseConfigured } from "./lib/supabase";
 import { getOnboardingCompleted, upsertClerkProfile } from "./lib/profile";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -54,6 +55,10 @@ export function AuthProfileProvider({ children }: { children: ReactNode }) {
     setIsChecking(true);
     void (async () => {
       try {
+        if (!isSupabaseConfigured()) {
+          if (!cancelled) setOnboardingDone(false);
+          return;
+        }
         const token = await withTimeout(getToken({ template: "supabase" }), 12_000);
         if (!token) {
           if (!cancelled) setOnboardingDone(false);

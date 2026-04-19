@@ -44,6 +44,7 @@ function mergeClerkAccountIntoProfilePatch(
  */
 export async function upsertClerkProfile(user: ClerkLikeUser, token: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return;
   const email = user.primaryEmailAddress?.emailAddress ?? null;
   const nowIso = new Date().toISOString();
   const clerkImage = user.imageUrl?.trim() ? user.imageUrl : null;
@@ -94,6 +95,7 @@ export async function upsertClerkProfile(user: ClerkLikeUser, token: string) {
 
 export async function getOnboardingCompleted(clerkId: string, token: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return false;
   const { data, error } = await supabase
     .from("profiles")
     .select("onboarding_completed")
@@ -106,6 +108,7 @@ export async function getOnboardingCompleted(clerkId: string, token: string) {
 
 export async function updateProfileBitesBalance(clerkId: string, token: string, bitesBalance: number) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return;
   const next = roundBiteAmount(Math.max(0, bitesBalance));
   const { error } = await supabase
     .from("profiles")
@@ -122,6 +125,9 @@ export async function applyBiteDeltaServer(
   meta: Record<string, unknown> = {},
 ): Promise<{ balance: number }> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { data, error } = await supabase.rpc("apply_bite_delta", {
     p_delta: delta,
     p_kind: kind,
@@ -195,6 +201,7 @@ export type BiteHistoryRow = {
 
 export async function fetchBitesHistory(clerkId: string, token: string, limit = 50): Promise<BiteHistoryRow[]> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("bites_history")
     .select("id, clerk_id, delta, balance_after, kind, meta, created_at")
@@ -211,6 +218,7 @@ export async function fetchBitesHistory(clerkId: string, token: string, limit = 
 
 export async function fetchProfileBitesBalance(clerkId: string, token: string): Promise<number | null> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("profiles")
     .select("bites_balance")
@@ -238,6 +246,9 @@ export async function mergeWalletBalanceWithSupabase(clerkId: string, token: str
 
 export async function saveCurrentTastes(clerkId: string, tastes: string[], token: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -252,6 +263,7 @@ export async function saveCurrentTastes(clerkId: string, tastes: string[], token
 
 export async function fetchProfileCurrencyPrefs(clerkId: string, token: string): Promise<CurrencyCode> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return "KRW";
   const { data, error } = await supabase
     .from("profiles")
     .select("preferred_currency")
@@ -269,6 +281,9 @@ export async function fetchProfileCurrencyPrefs(clerkId: string, token: string):
 
 export async function updatePreferredCurrency(clerkId: string, token: string, code: CurrencyCode) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -282,6 +297,7 @@ export async function updatePreferredCurrency(clerkId: string, token: string, co
 
 export async function fetchProfileLanguageCode(clerkId: string, token: string): Promise<string | null> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return null;
   const { data, error } = await supabase.from("profiles").select("language_code").eq("clerk_id", clerkId).maybeSingle();
   if (error) {
     console.warn("fetchProfileLanguageCode", error);
@@ -293,6 +309,9 @@ export async function fetchProfileLanguageCode(clerkId: string, token: string): 
 
 export async function updateProfileLanguageCode(clerkId: string, token: string, languageCode: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -306,6 +325,7 @@ export async function updateProfileLanguageCode(clerkId: string, token: string, 
 
 export async function updateProfileDeviceToken(clerkId: string, token: string, deviceToken: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return;
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -318,6 +338,9 @@ export async function updateProfileDeviceToken(clerkId: string, token: string, d
 
 export async function updateProfileImageUrl(clerkId: string, token: string, imageUrl: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -343,6 +366,7 @@ export type ExtendedProfileRow = {
 
 export async function fetchExtendedProfile(clerkId: string, token: string): Promise<ExtendedProfileRow | null> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("profiles")
     .select(
@@ -374,6 +398,9 @@ export async function saveExtendedProfile(
   },
 ) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("profiles")

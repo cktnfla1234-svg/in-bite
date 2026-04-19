@@ -1,12 +1,13 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useEffect, useRef } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchProfileLanguageCode } from "@/lib/profile";
 import i18n, { applyLocaleFromServer, persistAppLocale } from "./config";
 import { normalizeAppLocale } from "./appLocales";
 
-type ChannelHolder = { client: ReturnType<typeof getSupabaseClient>; channel: RealtimeChannel };
+type ChannelHolder = { client: SupabaseClient; channel: RealtimeChannel };
 
 function syncDocumentLanguageClass() {
   if (typeof document === "undefined") return;
@@ -76,6 +77,7 @@ export function AppLanguageSync() {
         const token = await getToken({ template: "supabase" });
         if (!token || cancelled) return;
         const client = getSupabaseClient(token);
+        if (!client) return;
         const channel = client
           .channel(`profile-lang:${user.id}`)
           .on(

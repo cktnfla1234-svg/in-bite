@@ -132,6 +132,7 @@ async function syncSupabaseRoomAndMessage(args: {
 }) {
   try {
     const supabase = getSupabaseClient(args.accessToken);
+    if (!supabase) return;
     await supabase.from("chat_rooms").upsert({
       id: args.roomId,
       created_at: nowIso(),

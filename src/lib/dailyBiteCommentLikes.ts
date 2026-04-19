@@ -8,6 +8,7 @@ export async function setCommentLikeRemote(
   liked: boolean,
 ): Promise<void> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return;
   if (liked) {
     const { error } = await supabase.from("daily_bite_comment_likes").upsert(
       { post_id: postId, comment_id: commentId, user_id: userId },
@@ -22,6 +23,7 @@ export async function setCommentLikeRemote(
 
 export async function fetchCommentLikeCount(token: string, commentId: string): Promise<number> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return 0;
   const { count, error } = await supabase
     .from("daily_bite_comment_likes")
     .select("id", { count: "exact", head: true })
@@ -38,6 +40,7 @@ export async function fetchMyLikedCommentIds(
 ): Promise<Set<string>> {
   if (!commentIds.length) return new Set();
   const supabase = getSupabaseClient(token);
+  if (!supabase) return new Set();
   const { data, error } = await supabase
     .from("daily_bite_comment_likes")
     .select("comment_id")
@@ -55,6 +58,7 @@ export async function fetchLikeCountsForComments(
   const map = new Map<string, number>();
   if (!commentIds.length) return map;
   const supabase = getSupabaseClient(token);
+  if (!supabase) return map;
   const { data, error } = await supabase.from("daily_bite_comment_likes").select("comment_id").in("comment_id", commentIds);
   if (error) throw error;
   for (const row of data ?? []) {

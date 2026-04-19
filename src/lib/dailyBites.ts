@@ -2,6 +2,7 @@ import { getSupabaseClient } from "./supabase";
 
 export async function hasLikedPost(postId: string, userId: string, token: string): Promise<boolean> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return false;
   const { data, error } = await supabase
     .from("post_likes")
     .select("post_id")
@@ -14,6 +15,9 @@ export async function hasLikedPost(postId: string, userId: string, token: string
 
 export async function togglePostLike(postId: string, userId: string, token: string): Promise<{ liked: boolean }> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { data: existing, error: likeCheckError } = await supabase
     .from("post_likes")
     .select("post_id")

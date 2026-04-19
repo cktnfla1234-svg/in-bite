@@ -49,6 +49,7 @@ export async function subscribeProfileAvatarRealtime(
   accessToken?: string,
 ) {
   const supabase = getSupabaseClient(accessToken);
+  if (!supabase) return () => {};
   const channel = supabase
     .channel("profiles-avatar-changes")
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, (payload) => {

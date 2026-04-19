@@ -275,6 +275,7 @@ export function ExploreScreen({
           upsertLocalInvite(mapInviteRowToLocalInvite(row));
         }
         const supabase = getSupabaseClient(token);
+        if (!supabase) return;
         const channel = supabase
           .channel(`invites-live-${user.id}`)
           .on(
@@ -337,6 +338,7 @@ export function ExploreScreen({
         const token = await getToken({ template: "supabase" });
         if (!token || !alive) return;
         const supabase = getSupabaseClient(token);
+        if (!supabase) return;
         const channel = supabase
           .channel("daily-bites-feed")
           .on(
@@ -1516,6 +1518,7 @@ function DailyBiteCommentsSection({
         const token = await getToken({ template: "supabase" });
         if (!token || cancelled) return;
         const supabase = getSupabaseClient(token);
+        if (!supabase) return;
         const channel = supabase
           .channel(`daily-bite-comments:${postId}`)
           .on(

@@ -56,6 +56,7 @@ const SELECT_FIELDS =
 
 export async function fetchPublicDailyBites(limit = 80): Promise<DailyBitePost[]> {
   const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("daily_bites")
     .select(SELECT_FIELDS)
@@ -71,6 +72,7 @@ export async function fetchPublicDailyBites(limit = 80): Promise<DailyBitePost[]
 
 export async function fetchOwnDailyBites(token: string, clerkId: string, limit = 120): Promise<DailyBitePost[]> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("daily_bites")
     .select(SELECT_FIELDS)
@@ -100,6 +102,9 @@ export async function insertDailyBitePost(
   },
 ) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const nowIso = input.createdAt;
   const { error } = await supabase.from("daily_bites").insert({
     id: input.id,
@@ -125,6 +130,9 @@ export async function updateDailyBitePost(
   input: { body: string; city: string; authorBio: string; photoUrls: string[] },
 ) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase
     .from("daily_bites")
     .update({
@@ -140,6 +148,9 @@ export async function updateDailyBitePost(
 
 export async function deleteDailyBitePost(token: string, biteId: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase.from("daily_bites").delete().eq("id", biteId);
   if (error) throw error;
 }

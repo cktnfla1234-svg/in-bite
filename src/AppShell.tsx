@@ -151,12 +151,14 @@ export default function AppShell({
     const locale = typeof navigator !== "undefined" ? navigator.language : "en";
     setIsConnectingChat(true);
     try {
+      const accessToken = getSupabaseToken ? await getSupabaseToken() : null;
       const { roomId } = await startSayHiChat({
         meId,
         meName,
         hostId,
         hostName,
         locale,
+        accessToken: accessToken ?? undefined,
       });
       setChatLaunch({ chatId: roomId, nonce: Date.now() });
       setActiveTab("chat");
@@ -226,7 +228,7 @@ export default function AppShell({
       try {
         const token = await getSupabaseToken();
         if (!token || cancelled) return;
-        await subscribeWebPush(token);
+        await subscribeWebPush(token, welcomeClerkUserId);
       } catch {
         // push subscription is optional in unsupported browsers
       }

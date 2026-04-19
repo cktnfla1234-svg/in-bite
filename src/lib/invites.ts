@@ -42,6 +42,9 @@ export type InviteRow = {
 
 export async function createInvite(input: CreateInviteInput, token: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase.from("invites").insert({
     clerk_id: input.clerkId,
     title: input.title,
@@ -67,6 +70,9 @@ export async function updateInvite(
   token: string,
 ) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
   const { error } = await supabase
     .from("invites")
     .update({
@@ -89,6 +95,7 @@ export async function updateInvite(
 
 export async function listOwnInvites(token: string): Promise<InviteRow[]> {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("invites")
     .select(

@@ -102,6 +102,7 @@ export function computePopularTastes(
 export async function fetchInviteDiscoveryRows(): Promise<InviteDiscoveryRow[]> {
   try {
     const supabase = getSupabaseClient();
+    if (!supabase) return [];
     const { data, error } = await supabase
       .from("invites")
       .select("location, taste_tags")
@@ -124,12 +125,8 @@ export function subscribeInvitesDiscoveryRealtime(
   const debounceMs = opts?.debounceMs ?? 320;
   const suffix = opts?.channelSuffix ?? "default";
 
-  let supabase: ReturnType<typeof getSupabaseClient>;
-  try {
-    supabase = getSupabaseClient();
-  } catch {
-    return () => {};
-  }
+  const supabase = getSupabaseClient();
+  if (!supabase) return () => {};
 
   let timer: number | null = null;
   const schedule = () => {

@@ -60,6 +60,7 @@ export function markNotificationRead(clerkId: string, notificationId: string) {
 export async function markNotificationReadRemote(token: string, notificationId: string) {
   try {
     const supabase = getSupabaseClient(token);
+    if (!supabase) return;
     await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
   } catch {
     // Row may exist only locally (demo id) or table missing.
@@ -94,6 +95,7 @@ export function removeDemoNotifications(clerkId: string) {
 export async function insertNotificationRemote(token: string, row: Omit<AppNotification, "id" | "read" | "created_at">) {
   try {
     const supabase = getSupabaseClient(token);
+    if (!supabase) return;
     await supabase.from("notifications").insert({
       type: row.type,
       actor_id: row.actor_id,
@@ -111,6 +113,7 @@ export async function insertNotificationRemote(token: string, row: Omit<AppNotif
 export async function mergeRemoteNotifications(clerkId: string, token: string) {
   try {
     const supabase = getSupabaseClient(token);
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("notifications")
       .select("id, type, actor_id, target_id, content, post_id, comment_id, read, created_at")
@@ -167,6 +170,7 @@ export function subscribeNotificationsRealtime(
   onRealtimeEvent?: (eventType: NotificationRealtimeEvent, notification: AppNotification | null) => void,
 ): () => void {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return () => {};
   const channel = supabase
     .channel(`notifications-realtime:${clerkId}`)
     .on(

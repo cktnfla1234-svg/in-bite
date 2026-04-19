@@ -1,6 +1,7 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useEffect, useRef } from "react";
 import { mergeWalletBalanceWithSupabase, upsertClerkProfile } from "./profile";
+import { isSupabaseConfigured } from "./supabase";
 
 /**
  * Sync the logged-in Clerk user into Supabase.
@@ -23,6 +24,7 @@ export function SupabaseUserSync() {
 
     let cancelled = false;
     void (async () => {
+      if (!isSupabaseConfigured()) return;
       const token = await getToken({ template: "supabase" });
       if (!token) {
         // Token can arrive after first paint — retry on the next effect run.

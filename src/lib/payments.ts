@@ -42,5 +42,6 @@ export async function createPaymentIntent(input: CreatePaymentIntentInput): Prom
 
 export async function markPaymentFailed(paymentId: string, token: string) {
   const supabase = getSupabaseClient(token);
+  if (!supabase) return;
   await supabase.from("payments").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", paymentId);
 }
