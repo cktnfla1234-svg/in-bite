@@ -1,9 +1,10 @@
 -- Reference only (safe to run in SQL editor; statements are comments).
 --
--- Current web client: Daily Bite *comment text* is stored in the browser (localStorage),
--- not in a Supabase `comments` table. Remote pieces: `notifications`, `daily_bite_comment_likes`,
--- `daily_bites.comments_count`, and BITE rewards via `apply_bite_delta` + `bites_history`
--- (see supabase_bites_economy.sql).
+-- Server comments: `public.daily_bite_comments` (see supabase_daily_bite_comments.sql).
+-- The app still mirrors threads to localStorage for offline resilience; Supabase is the
+-- source of truth when the post exists in `daily_bites`.
+-- Related: `notifications`, `daily_bite_comment_likes`, `daily_bites.comments_count`,
+-- BITE rewards via `apply_bite_delta` + `bites_history` (supabase_bites_economy.sql).
 --
 -- If you add a server-side table later (example name: `daily_bite_comments`), typical RLS:
 --

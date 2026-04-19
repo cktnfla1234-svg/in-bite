@@ -351,6 +351,7 @@ export default function AppShell({
   useEffect(() => {
     const path = location.pathname;
     if (path.startsWith("/chat/")) {
+      setPendingDailyPostId(null);
       setActiveTab("chat");
       return;
     }
@@ -363,10 +364,17 @@ export default function AppShell({
       return;
     }
     if (path.startsWith("/explore")) {
+      setPendingDailyPostId(null);
       setActiveTab("explore");
       return;
     }
+    if (path === "/messages") {
+      setPendingDailyPostId(null);
+      setActiveTab("chat");
+      return;
+    }
     if (path === "/app") {
+      setPendingDailyPostId(null);
       setActiveTab("home");
       return;
     }
@@ -439,6 +447,9 @@ export default function AppShell({
         onInviteCompanion={() => {
           setGroupChatInviteNonce((n) => n + 1);
           setActiveTab("chat");
+          if (!location.pathname.startsWith("/chat/") && location.pathname !== "/messages") {
+            navigate("/messages");
+          }
         }}
         onOpenCreateDailyInbite={() => setCreateDailyInbiteOpen(true)}
         activityHasUnread={activityUnread}
@@ -482,24 +493,18 @@ export default function AppShell({
       />
       <div
         ref={tabScrollRef}
-        className="relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [flex-basis:0]"
         style={{ paddingBottom: "calc(5.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            className="relative min-h-full"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{
-              opacity: 0,
-              transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
-            }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {screenMap[activeTab]}
-          </motion.div>
-        </AnimatePresence>
+        {/* flex-basis:0 + min-h-0: stable flex height on mobile; avoid key remount so child motion/layout state cannot blank all tabs */}
+        <div
+          className="relative flex w-full flex-col"
+          style={{
+            minHeight: "max(100%, calc(100dvh - 5.75rem - env(safe-area-inset-bottom, 0px)))",
+          }}
+        >
+          {screenMap[activeTab]}
+        </div>
       </div>
 
       <BottomNav
@@ -511,6 +516,13 @@ export default function AppShell({
           setActiveTab(next);
           if (next === "explore" && location.pathname !== "/explore") navigate("/explore");
           if (next === "home" && location.pathname !== "/app") navigate("/app");
+          if (
+            next === "chat" &&
+            !location.pathname.startsWith("/chat/") &&
+            location.pathname !== "/messages"
+          ) {
+            navigate("/messages");
+          }
         }}
       />
 
@@ -596,7 +608,7 @@ export default function AppShell({
       <AnimatePresence>
         {createDailyInbiteOpen ? (
           <motion.div
-            className="fixed inset-0 z-[60]"
+            className="fixed inset-0 z-[100]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

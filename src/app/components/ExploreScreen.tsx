@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Check, Heart, MessageCircle, MessageSquare, MoreVertical } from "lucide-react";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { HostProfileScreen } from "./HostProfileScreen";
 import { ExperienceDetail } from "./ExperienceDetail";
@@ -836,7 +836,6 @@ export function ExploreScreen({
     return (
       <>
       <main className="flex min-h-0 min-h-full flex-col overflow-hidden bg-[#FDFAF5]">
-        <LayoutGroup id="daily-bite-shared">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-8 pt-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <button
@@ -854,7 +853,6 @@ export function ExploreScreen({
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedDailyPost.id}
-                layoutId={`daily-card-${selectedDailyPost.id}`}
                 initial={{ opacity: 0, y: 14, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -890,7 +888,6 @@ export function ExploreScreen({
               }
             />
           </div>
-        </LayoutGroup>
         <AnimatePresence>
           {showCommentRewardToast ? (
             <motion.div
@@ -989,12 +986,10 @@ export function ExploreScreen({
       >
         {section === "dailyBites" ? (
           filteredDailyPosts.length ? (
-            <LayoutGroup id="daily-bite-shared">
             <div className="mt-6 space-y-4">
               {filteredDailyPosts.map((post) => (
                 <motion.article
                   key={post.id}
-                  layoutId={`daily-card-${post.id}`}
                   onClick={() => handleOpenDailyPost(post.id)}
                   className="cursor-pointer"
                   whileTap={{ scale: 0.995 }}
@@ -1016,7 +1011,6 @@ export function ExploreScreen({
                 </motion.article>
               ))}
             </div>
-            </LayoutGroup>
           ) : (
             <div className="mt-6 rounded-[26px] bg-white/60 px-6 py-10 text-center shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
               <div className="font-brand-display text-[24px] text-[#A0522D]">
@@ -1476,6 +1470,82 @@ function DailyBiteCommentsSection({
     })();
     return () => {
       cancelled = true;
+    };
+  }, [getToken, postId, user?.id]);
+
+  /** Other devices/tabs: new rows on `daily_bite_comments` (enable table in Supabase → Realtime). */
+  useEffect(() => {
+    let cancelled = false;
+    let removeChannel: (() => void) | undefined;
+    void (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token || cancelled) return;
+        const supabase = getSupabaseClient(token);
+        const channel = supabase
+          .channel(`daily-bite-comments:${postId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "daily_bite_comments",
+              filter: `post_id=eq.${postId}`,
+            },
+            (payload) => {
+              const raw = payload.new as Record<string, unknown>;
+              if (!raw?.id || typeof raw.id !== "string") return;
+              const row: RemoteDailyBiteCommentRow = {
+                id: raw.id,
+                author_clerk_id: String(raw.author_clerk_id ?? ""),
+                author_name: String(raw.author_name ?? ""),
+                body: String(raw.body ?? ""),
+                created_at: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
+              };
+              const mapped = mapRemoteCommentToStored(row);
+              setComments((prev) => {
+                if (prev.some((c) => c.id === mapped.id)) return prev;
+                return mergeCommentThreads(prev, [mapped]);
+              });
+              void (async () => {
+                try {
+                  const t2 = await getToken({ template: "supabase" });
+                  const me = user?.id;
+                  if (!t2 || !me) return;
+                  const [count, mySet] = await Promise.all([
+                    fetchCommentLikeCount(t2, mapped.id),
+                    fetchMyLikedCommentIds(t2, postId, me, [mapped.id]),
+                  ]);
+                  setComments((prev) =>
+                    prev.map((c) =>
+                      c.id === mapped.id
+                        ? {
+                            ...c,
+                            likesCount: count,
+                            likedBy: mySet.has(mapped.id)
+                              ? Array.from(new Set([...c.likedBy.filter((x) => x !== me), me]))
+                              : c.likedBy.filter((x) => x !== me),
+                          }
+                        : c,
+                    ),
+                  );
+                } catch {
+                  // optional
+                }
+              })();
+            },
+          )
+          .subscribe();
+        removeChannel = () => {
+          void supabase.removeChannel(channel);
+        };
+      } catch {
+        // Realtime not enabled or table missing
+      }
+    })();
+    return () => {
+      cancelled = true;
+      removeChannel?.();
     };
   }, [getToken, postId, user?.id]);
 

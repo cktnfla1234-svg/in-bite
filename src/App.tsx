@@ -210,6 +210,13 @@ function useMainAppShellRouteProps() {
       initialDailyPostId: null as string | null,
     };
   }
+  if (pathname === "/messages") {
+    return {
+      initialTab: "chat" as const,
+      initialExploreSection: "invitations" as const,
+      initialDailyPostId: null as string | null,
+    };
+  }
   if (pathname === "/app") {
     return {
       initialTab: "home" as const,
@@ -375,6 +382,7 @@ function AppRoutes() {
             <Route path="/app" element={<MainAppRouteLeaf />} />
             <Route path="/explore" element={<MainAppRouteLeaf />} />
             <Route path="/daily-bite/:postId" element={<MainAppRouteLeaf />} />
+            <Route path="/messages" element={<MainAppRouteLeaf />} />
           </Route>
           <Route path="/chat/:roomId" element={<ProtectedChatRoomRoute />} />
           <Route path="/onboarding/tastes" element={<ProtectedOnboardingRoute />} />
@@ -388,6 +396,7 @@ function AppRoutes() {
             <Route path="/app" element={<MainAppRouteLeaf />} />
             <Route path="/explore" element={<MainAppRouteLeaf />} />
             <Route path="/daily-bite/:postId" element={<MainAppRouteLeaf />} />
+            <Route path="/messages" element={<MainAppRouteLeaf />} />
           </Route>
           <Route path="/chat/:roomId" element={<PublicChatRoomRoute />} />
           <Route path="/account-recovery" element={<AccountRecoveryPage />} />

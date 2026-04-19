@@ -15,37 +15,78 @@ export function roundBiteAmount(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+function mergeClerkAccountIntoProfilePatch(
+  user: ClerkLikeUser,
+  existingImageUrl: string | null | undefined,
+  email: string | null,
+  nowIso: string,
+  clerkImage: string | null,
+): Record<string, unknown> {
+  const hasStoredAvatar = Boolean(existingImageUrl && String(existingImageUrl).trim());
+  const patch: Record<string, unknown> = {
+    email,
+    first_name: user.firstName,
+    last_name: user.lastName,
+    updated_at: nowIso,
+  };
+  if (!hasStoredAvatar) {
+    patch.image_url = clerkImage;
+  }
+  return patch;
+}
+
+/**
+ * Ensures a `profiles` row exists and merges Clerk account fields without wiping
+ * user-edited server fields (e.g. custom `image_url` from profile edit, `profile_bio`, etc.).
+ *
+ * Order: SELECT → INSERT only if missing → UPDATE identity fields only; `image_url` is
+ * synced from Clerk only when the row has no stored avatar yet.
+ */
 export async function upsertClerkProfile(user: ClerkLikeUser, token: string) {
   const supabase = getSupabaseClient(token);
   const email = user.primaryEmailAddress?.emailAddress ?? null;
   const nowIso = new Date().toISOString();
+  const clerkImage = user.imageUrl?.trim() ? user.imageUrl : null;
 
-  const { error: insertError } = await supabase.from("profiles").upsert(
-    {
+  const { data: existing, error: readError } = await supabase
+    .from("profiles")
+    .select("clerk_id, image_url")
+    .eq("clerk_id", user.id)
+    .maybeSingle();
+
+  if (readError) throw readError;
+
+  if (!existing) {
+    const { error: insertError } = await supabase.from("profiles").insert({
       clerk_id: user.id,
       email,
       first_name: user.firstName,
       last_name: user.lastName,
-      image_url: user.imageUrl,
-      bites_balance: 0,
-      welcome_bonus_granted: false,
-      preferred_currency: "KRW",
+      image_url: clerkImage,
       updated_at: nowIso,
-    },
-    { onConflict: "clerk_id", ignoreDuplicates: true },
-  );
-
-  if (insertError) throw insertError;
+    });
+    if (insertError && (insertError as { code?: string }).code === "23505") {
+      const { data: raced, error: raceReadErr } = await supabase
+        .from("profiles")
+        .select("clerk_id, image_url")
+        .eq("clerk_id", user.id)
+        .maybeSingle();
+      if (raceReadErr) throw raceReadErr;
+      if (!raced) throw insertError;
+      const { error: upAfterRace } = await supabase
+        .from("profiles")
+        .update(mergeClerkAccountIntoProfilePatch(user, raced.image_url, email, nowIso, clerkImage))
+        .eq("clerk_id", user.id);
+      if (upAfterRace) throw upAfterRace;
+      return;
+    }
+    if (insertError) throw insertError;
+    return;
+  }
 
   const { error: updateError } = await supabase
     .from("profiles")
-    .update({
-      email,
-      first_name: user.firstName,
-      last_name: user.lastName,
-      image_url: user.imageUrl,
-      updated_at: nowIso,
-    })
+    .update(mergeClerkAccountIntoProfilePatch(user, existing.image_url, email, nowIso, clerkImage))
     .eq("clerk_id", user.id);
 
   if (updateError) throw updateError;

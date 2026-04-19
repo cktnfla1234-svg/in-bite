@@ -54,13 +54,14 @@ export function ChatScreen({
   }, [launchNonce, openGroupChatNonce]);
 
   useEffect(() => {
-    if (!launchNonce || !launchChatId) return;
-    if (consumedLaunchNonce.current === launchNonce) return;
-    consumedLaunchNonce.current = launchNonce;
+    if (!chatLaunch?.chatId) return;
+    const nonce = chatLaunch.nonce;
+    if (consumedLaunchNonce.current === nonce) return;
+    consumedLaunchNonce.current = nonce;
     setChats(listChatRooms());
-    setActiveChatId(launchChatId);
+    setActiveChatId(chatLaunch.chatId);
     onChatLaunchConsumed?.();
-  }, [launchNonce, launchChatId, onChatLaunchConsumed]);
+  }, [chatLaunch, onChatLaunchConsumed]);
 
   const activeChat = useMemo(
     () => chats.find((c) => c.id === activeChatId) ?? null,

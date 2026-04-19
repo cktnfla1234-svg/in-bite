@@ -145,7 +145,7 @@ export function HomeScreen({
   return (
     <main className="relative min-h-full w-full bg-[#FDFAF5] pb-24">
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         className="px-6 pb-8 pt-10"
       >
@@ -180,7 +180,7 @@ export function HomeScreen({
 
       <div className="-mt-6 flex min-h-[44vh] flex-col items-center justify-start px-6">
         <div className="mb-7 flex h-28 flex-col items-center justify-center overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence initial={false}>
             <motion.div
               key={greetingIndex}
               initial={{ opacity: 0, y: 20 }}
@@ -230,7 +230,7 @@ export function HomeScreen({
             />
             {showSearchConfirm ? (
               <motion.button
-                initial={{ opacity: 0, x: 10 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 onClick={handleSearchSubmit}
                 className="mr-2 rounded-full p-2 transition-colors hover:bg-[#FDFAF5]"

@@ -69,4 +69,6 @@ create trigger daily_bite_comments_count
   after insert or delete on public.daily_bite_comments
   for each row execute function public.daily_bite_comments_adjust_count();
 
--- Realtime (optional): alter publication supabase_realtime add table public.daily_bite_comments;
+-- Realtime (recommended for live threads): Dashboard → Database → Replication →
+-- enable `daily_bite_comments`, or run:
+--   alter publication supabase_realtime add table public.daily_bite_comments;
