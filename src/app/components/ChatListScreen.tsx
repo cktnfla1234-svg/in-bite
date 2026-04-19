@@ -30,7 +30,7 @@ function GroupAvatarStack() {
 
 export function ChatListScreen({ items, onSelectChat, onOpenProfile }: ChatListScreenProps) {
   return (
-    <div className="min-h-[100svh] bg-[#FDFAF5] pb-24 pt-6">
+    <div className="min-h-full w-full bg-[#FDFAF5] pb-24 pt-6">
       <div className="px-5">
         <div className="text-[22px] font-semibold text-[#A0522D]">Messages</div>
         <div className="mt-1 text-[12px] text-[#A0522D]/60">

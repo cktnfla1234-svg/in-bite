@@ -61,6 +61,8 @@
     "activityUnreadAria": "Activity, unread notifications",
     "commentReward": "0.1 BITE earned! 🍪",
     "rewardFail": "Reward failed. Please try again in a moment.",
+    "rewardFailSoft": "Comment posted. BITE reward could not sync — you can try again later.",
+    "commentSavedLocalOnly": "Saved on this device only (server sync failed or post not on server yet).",
     "notifyLike": "{{name}} liked your Daily Bite. ❤️",
     "notifyCommentLike": "{{name}} liked your comment. 👍",
     "noInvitationsTitle": "No invitations found",
@@ -75,7 +77,16 @@
     "notifyReply": "{{name}} replied: '{{preview}}' 💬",
     "notifyReplyPeer": "{{name}} replied to your comment. 💬",
     "removeTasteFilter": "Remove taste filter: {{taste}}",
-    "unknownError": "An unknown error occurred"
+    "unknownError": "An unknown error occurred",
+    "dailyBitePostMenuAria": "Post options",
+    "dailyBiteDeleteConfirmTitle": "Delete this post?",
+    "dailyBiteDeleteConfirmBody": "This cannot be undone. Delete this Daily Bite?",
+    "dailyBiteDeleteConfirm": "Delete",
+    "dailyBiteEditModalTitle": "Edit Daily Bite",
+    "dailyBiteEditBodyLabel": "What’s on your mind",
+    "dailyBiteEditCityLabel": "City",
+    "dailyBiteEditBioLabel": "Short bio",
+    "dailyBiteEmptyBodyError": "Post text cannot be empty."
   },
   "chat": {
     "today": "Today",
@@ -168,7 +179,11 @@
     "cropGuide": "Position your face inside the circle.",
     "cropCancel": "Cancel",
     "cropApply": "Apply",
-    "cropApplying": "Applying…"
+    "cropApplying": "Applying…",
+    "saveSuccess": "Profile saved.",
+    "saveSuccessLocal": "Profile saved on this device.",
+    "saveMissingSupabaseToken": "Missing Supabase session. Add a Clerk JWT template named “supabase” (see AUTH_SUPABASE_SETUP.md) and sign in again.",
+    "saveServerFailed": "Could not sync profile to the server: {{detail}}"
   },
   "locationPicker": {
     "meetingTitle": "Location *",

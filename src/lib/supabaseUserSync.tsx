@@ -11,24 +11,38 @@ import { mergeWalletBalanceWithSupabase, upsertClerkProfile } from "./profile";
 export function SupabaseUserSync() {
   const { user } = useUser();
   const { getToken } = useAuth();
-  const didSync = useRef(false);
+  /** Last Clerk user id we successfully synced to Supabase (profile row exists server-side). */
+  const syncedUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user || didSync.current) return;
-    didSync.current = true;
+    if (!user?.id) {
+      syncedUserId.current = null;
+      return;
+    }
+    if (syncedUserId.current === user.id) return;
 
-    (async () => {
+    let cancelled = false;
+    void (async () => {
       const token = await getToken({ template: "supabase" });
       if (!token) {
-        // If no template configured yet, do nothing (UI still works).
+        // Token can arrive after first paint — retry on the next effect run.
         return;
       }
-      await upsertClerkProfile(user, token);
-      await mergeWalletBalanceWithSupabase(user.id, token);
-    })().catch(() => {
-      // Best-effort sync; avoid blocking app usage on DB config.
-      didSync.current = false;
-    });
+      try {
+        await upsertClerkProfile(user, token);
+        if (cancelled) return;
+        await mergeWalletBalanceWithSupabase(user.id, token);
+        if (cancelled) return;
+        syncedUserId.current = user.id;
+      } catch {
+        // Best-effort sync; allow retry after Clerk/Supabase config fixes.
+        syncedUserId.current = null;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [getToken, user]);
 
   return null;

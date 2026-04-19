@@ -30,6 +30,11 @@ function formatRelativeLabel(createdAt: string): string {
 export function dailyBiteRowToPost(row: DailyBiteDbRow): DailyBitePost {
   const raw = row.photo_urls;
   const photos = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
+  const authorClerkRaw = row.author_clerk_id;
+  const authorClerkId =
+    authorClerkRaw == null || authorClerkRaw === ""
+      ? undefined
+      : String(authorClerkRaw).trim() || undefined;
   return {
     id: row.id,
     authorName: row.author_name || "Member",
@@ -42,7 +47,7 @@ export function dailyBiteRowToPost(row: DailyBiteDbRow): DailyBitePost {
     authorImageUrl: row.author_image_url ?? undefined,
     likeCount: Number(row.likes_count ?? 0),
     commentCount: Number(row.comments_count ?? 0),
-    authorClerkId: row.author_clerk_id,
+    authorClerkId,
   };
 }
 

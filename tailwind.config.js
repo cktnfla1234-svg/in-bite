@@ -3,6 +3,9 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        ko: ['"Gowun Dodum"', '"Hi Melody"', '"Noto Sans KR"', 'ui-rounded', 'system-ui', 'sans-serif'],
+      },
       colors: {
         accent: {
           50: '#fff7ed',

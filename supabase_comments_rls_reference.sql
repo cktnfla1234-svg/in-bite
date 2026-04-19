@@ -1,0 +1,23 @@
+-- Reference only (safe to run in SQL editor; statements are comments).
+--
+-- Current web client: Daily Bite *comment text* is stored in the browser (localStorage),
+-- not in a Supabase `comments` table. Remote pieces: `notifications`, `daily_bite_comment_likes`,
+-- `daily_bites.comments_count`, and BITE rewards via `apply_bite_delta` + `bites_history`
+-- (see supabase_bites_economy.sql).
+--
+-- If you add a server-side table later (example name: `daily_bite_comments`), typical RLS:
+--
+-- alter table public.daily_bite_comments enable row level security;
+--
+-- create policy daily_bite_comments_select_visible
+--   on public.daily_bite_comments for select to authenticated, anon
+--   using (true);  -- tighten as needed (e.g. only posts you can read)
+--
+-- create policy daily_bite_comments_insert_own
+--   on public.daily_bite_comments for insert to authenticated
+--   with check ((auth.jwt() ->> 'sub') = author_clerk_id);
+--
+-- create policy daily_bite_comments_update_own
+--   on public.daily_bite_comments for update to authenticated
+--   using ((auth.jwt() ->> 'sub') = author_clerk_id)
+--   with check ((auth.jwt() ->> 'sub') = author_clerk_id);

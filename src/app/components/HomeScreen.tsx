@@ -49,7 +49,7 @@ const GREETING_META = [
 ] as const;
 const WELCOME_DISMISSED_KEY = "inbite:welcome-dismissed:v2";
 function getGreetingFontFamily(lang: string) {
-  if (lang === "Korean") return "'Gaegu', 'Noto Sans KR', sans-serif";
+  if (lang === "Korean") return "'Gowun Dodum', 'Hi Melody', 'Noto Sans KR', sans-serif";
   if (lang === "Japanese") return "'Hachi Maru Pop', 'Yomogi', 'Noto Sans JP', sans-serif";
   if (lang === "Chinese") return "'ZCOOL KuaiLe', 'Noto Sans SC', sans-serif";
   return "'Patrick Hand', cursive";
@@ -67,7 +67,7 @@ export function HomeScreen({
   isSignedIn = false,
   onSearch,
 }: HomeScreenProps) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTaste, setSelectedTaste] = useState<string | null>(null);
@@ -143,7 +143,7 @@ export function HomeScreen({
   };
 
   return (
-    <main className="relative min-h-[100svh] bg-[#FDFAF5] pb-24">
+    <main className="relative min-h-full w-full bg-[#FDFAF5] pb-24">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -152,10 +152,7 @@ export function HomeScreen({
         <div className="mb-2 flex flex-col items-center gap-2">
           <div className="flex items-center justify-center gap-3">
             <CookieLogo size={36} />
-            <h1
-              className="text-[32px]"
-              style={{ color: "#A0522D", fontFamily: "'Patrick Hand', cursive" }}
-            >
+            <h1 className="font-brand-display text-[32px]" style={{ color: "#A0522D" }}>
               人-Bite
             </h1>
           </div>
@@ -196,13 +193,19 @@ export function HomeScreen({
                 className="whitespace-nowrap text-center"
                 style={{
                   color: "#A0522D",
-                  fontFamily: getGreetingFontFamily(GREETING_META[greetingIndex].lang),
+                  fontFamily: i18n.language.startsWith("ko")
+                    ? "'Gowun Dodum', 'Hi Melody', 'Noto Sans KR', sans-serif"
+                    : getGreetingFontFamily(GREETING_META[greetingIndex].lang),
                   fontWeight: GREETING_META[greetingIndex].lang === "Korean" ? "700" : "400",
                   fontSize: getGreetingFontSize(GREETING_META[greetingIndex].lang),
                   letterSpacing: "-0.01em",
                 }}
               >
-                {t(`home.greeting${greetingIndex}` as const)}
+                {i18n.language.startsWith("ko") && greetingIndex === 0 ? (
+                  <span className="font-bold">{t("home.greeting0")}</span>
+                ) : (
+                  t(`home.greeting${greetingIndex}` as const)
+                )}
               </h2>
             </motion.div>
           </AnimatePresence>
@@ -223,8 +226,7 @@ export function HomeScreen({
                 setSearchQuery(next);
                 setShowSearchConfirm(Boolean(next.trim()));
               }}
-              className="flex-1 bg-transparent py-4 pl-4 pr-2 text-[15px] outline-none"
-              style={{ fontFamily: "'Noto Sans KR', sans-serif" }}
+              className="font-body-ko flex-1 bg-transparent py-4 pl-4 pr-2 text-[15px] outline-none"
             />
             {showSearchConfirm ? (
               <motion.button
@@ -246,8 +248,8 @@ export function HomeScreen({
 
         <div className="mt-10 w-full max-w-md">
           <p
-            className="mb-4 text-center text-[11px] uppercase tracking-[0.2em]"
-            style={{ color: "#B89A80", fontFamily: "'Patrick Hand', cursive" }}
+            className="font-brand-display mb-4 text-center text-[11px] uppercase tracking-[0.2em]"
+            style={{ color: "#B89A80" }}
           >
             {t("home.popularDestinations")}
           </p>
@@ -259,8 +261,7 @@ export function HomeScreen({
                   setSearchQuery(city);
                   setShowSearchConfirm(true);
                 }}
-                className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-sm text-[#3D2F2A] shadow-sm transition-colors hover:bg-[#FFF0E8]"
-                style={{ fontFamily: "'Noto Sans KR', sans-serif" }}
+                className="font-body-ko rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-sm text-[#3D2F2A] shadow-sm transition-colors hover:bg-[#FFF0E8]"
                 type="button"
               >
                 {city}
@@ -271,8 +272,8 @@ export function HomeScreen({
 
         <div className="mt-8 w-full max-w-md">
           <p
-            className="mb-4 text-center text-[11px] uppercase tracking-[0.2em]"
-            style={{ color: "#B89A80", fontFamily: "'Patrick Hand', cursive" }}
+            className="font-brand-display mb-4 text-center text-[11px] uppercase tracking-[0.2em]"
+            style={{ color: "#B89A80" }}
           >
             {t("home.currentTastes")}
           </p>
@@ -286,9 +287,8 @@ export function HomeScreen({
                   onClick={() =>
                     setSelectedTaste((prev) => (prev === taste ? null : taste))
                   }
-                  className="rounded-full px-4 py-2 text-sm text-white shadow-sm transition-colors"
+                  className="font-body-ko rounded-full px-4 py-2 text-sm text-white shadow-sm transition-colors"
                   style={{
-                    fontFamily: "'Noto Sans KR', sans-serif",
                     backgroundColor: active ? "#8F4929" : "#A0522D",
                   }}
                 >

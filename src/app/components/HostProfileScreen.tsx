@@ -10,7 +10,7 @@ type HostProfileScreenProps = {
 export function HostProfileScreen({ hostName, onBack }: HostProfileScreenProps) {
   const { preferredCurrency } = usePreferredCurrency();
   return (
-    <div className="min-h-[100svh] bg-[#FDFAF5] pb-24">
+    <div className="min-h-full w-full bg-[#FDFAF5] pb-24">
       <div className="px-5 pt-6">
         <button
           type="button"

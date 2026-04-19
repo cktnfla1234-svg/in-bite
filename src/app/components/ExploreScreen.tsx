@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth, useUser } from "@clerk/clerk-react";
-import { Bell, Check, Heart, MessageCircle, MessageSquare } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Bell, Check, Heart, MessageCircle, MessageSquare, MoreVertical } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { toast } from "sonner";
 import { HostProfileScreen } from "./HostProfileScreen";
@@ -20,8 +21,13 @@ import {
   toDailyBitePost,
   updateLocalDailyBite,
 } from "@/lib/localDailyBites";
-import { dailyBiteRowToPost, fetchPublicDailyBites } from "@/lib/remoteDailyBites";
-import { deleteDailyBitePost, updateDailyBitePost } from "@/lib/remoteDailyBites";
+import {
+  dailyBiteRowToPost,
+  deleteDailyBitePost,
+  fetchOwnDailyBites,
+  fetchPublicDailyBites,
+  updateDailyBitePost,
+} from "@/lib/remoteDailyBites";
 import {
   getProfileAvatar,
   subscribeProfileAvatarRealtime,
@@ -43,6 +49,7 @@ import {
 import { useDisplayPostBody } from "@/lib/contentTranslation";
 import { listOwnInvites, type InviteRow } from "@/lib/invites";
 import { getSupabaseClient } from "@/lib/supabase";
+import { fetchDailyBiteComments, insertDailyBiteComment, type RemoteDailyBiteCommentRow } from "@/lib/dailyBiteCommentsRemote";
 import { isSelectableCurrency } from "@/lib/currency";
 
 type ExploreScreenProps = {
@@ -61,6 +68,7 @@ type ExploreScreenProps = {
   /** When set, opens this Daily Bite in detail (then consumer clears). */
   openDailyPostId?: string | null;
   onConsumedOpenDailyPost?: () => void;
+  onOpenDailyPostRoute?: (postId: string) => void;
 };
 
 type ExploreMode = "feed" | "host" | "detail" | "dailyDetail";
@@ -82,8 +90,8 @@ function normalizeId(v?: string | null) {
 }
 
 function isOwnDailyPost(post: DailyBitePost, userId?: string | null) {
-  const postOwner = normalizeId(post.authorClerkId);
-  const me = normalizeId(userId);
+  const postOwner = normalizeId(post.authorClerkId != null ? String(post.authorClerkId) : "");
+  const me = normalizeId(userId != null ? String(userId) : "");
   return Boolean(postOwner && me && postOwner === me);
 }
 
@@ -102,6 +110,7 @@ export function ExploreScreen({
   onOpenActivity,
   openDailyPostId = null,
   onConsumedOpenDailyPost,
+  onOpenDailyPostRoute,
 }: ExploreScreenProps) {
   const { preferredCurrency } = usePreferredCurrency();
   const { t } = useTranslation("common");
@@ -115,12 +124,19 @@ export function ExploreScreen({
   const [remoteDailyPosts, setRemoteDailyPosts] = useState<DailyBitePost[]>([]);
   const [showDailyCreateHint, setShowDailyCreateHint] = useState(false);
   const [showCommentRewardToast, setShowCommentRewardToast] = useState(false);
+  const [dailyBiteEditPost, setDailyBiteEditPost] = useState<DailyBitePost | null>(null);
+  const [dailyBiteDeleteId, setDailyBiteDeleteId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState({ text: "", city: "", authorBio: "" });
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [likePopPostId, setLikePopPostId] = useState<string | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [avatarMapTick, setAvatarMapTick] = useState(0);
+  /** Post IDs confirmed owned by the signed-in user via authenticated Supabase query (fixes missing author_clerk_id on public rows). */
+  const [serverOwnedDailyIds, setServerOwnedDailyIds] = useState<Set<string>>(() => new Set());
   const { user } = useUser();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isGuestViewer = !user?.id;
   const { getToken } = useAuth();
   /** Bumped when the user toggles a post like so in-flight `hasLikedPost` hydration cannot overwrite optimistic UI. */
@@ -144,7 +160,10 @@ export function ExploreScreen({
       }
       byId.set(p.id, mergeAvatar({
         ...existing,
-        authorClerkId: normalizeId(existing.authorClerkId) || p.authorClerkId,
+        // Prefer local device author id so a sparse/legacy public row cannot strip ownership UI.
+        authorClerkId:
+          normalizeId(p.authorClerkId != null ? String(p.authorClerkId) : "") ||
+          normalizeId(existing.authorClerkId != null ? String(existing.authorClerkId) : ""),
         authorName: existing.authorName || p.authorName,
         authorBio: existing.authorBio || p.authorBio,
       }));
@@ -166,10 +185,35 @@ export function ExploreScreen({
       if (isOwnDailyPost(p, uid)) out.add(p.id);
     }
     for (const p of localDailyPosts) {
-      if (normalizeId(p.authorClerkId) === uid) out.add(p.id);
+      if (normalizeId(p.authorClerkId != null ? String(p.authorClerkId) : "") === uid) out.add(p.id);
     }
+    for (const id of serverOwnedDailyIds) out.add(id);
     return out;
-  }, [localDailyPosts, mergedDailyPosts, user?.id]);
+  }, [localDailyPosts, mergedDailyPosts, serverOwnedDailyIds, user?.id]);
+
+  useEffect(() => {
+    const uid = user?.id?.trim();
+    if (!uid) {
+      setServerOwnedDailyIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token || cancelled) return;
+        const own = await fetchOwnDailyBites(token, uid, 120);
+        if (cancelled) return;
+        setServerOwnedDailyIds(new Set(own.map((p) => p.id)));
+      } catch (e) {
+        console.warn("[ExploreScreen] fetchOwnDailyBites failed", e);
+        if (!cancelled) setServerOwnedDailyIds(new Set());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, getToken, section]);
 
   const activityBell = (
     <button
@@ -425,6 +469,15 @@ export function ExploreScreen({
     };
   }, [getToken, mergedDailyPosts, user?.id]);
 
+  useEffect(() => {
+    if (!dailyBiteEditPost) return;
+    setEditDraft({
+      text: dailyBiteEditPost.text,
+      city: dailyBiteEditPost.city,
+      authorBio: dailyBiteEditPost.authorBio ?? "",
+    });
+  }, [dailyBiteEditPost]);
+
   const selectedExperience = useMemo(() => {
     return (
       sortedExperiences.find((experience) => experience.id === selectedExperienceId) ??
@@ -448,19 +501,26 @@ export function ExploreScreen({
 
   useEffect(() => {
     if (mode !== "dailyDetail" || !selectedDailyPost) return;
-    const n = loadStoredCommentsLength(selectedDailyPost.id);
     setCommentCounts((prev) => ({
       ...prev,
-      [selectedDailyPost.id]: (selectedDailyPost.commentCount ?? 0) + n,
+      [selectedDailyPost.id]: selectedDailyPost.commentCount ?? 0,
     }));
   }, [mode, selectedDailyPost]);
 
   useEffect(() => {
     setSelectedCity(initialCity);
+  }, [initialCity]);
+
+  // Sync search-driven reset only when not on a Daily Bite deep link — otherwise a fresh AppShell
+  // with empty `initialCity` would clear the opened post detail.
+  // Reset stacked explore views only when the *route* changes — not when `initialCity` updates alone,
+  // otherwise a parent re-render can kick users out of Daily Bite detail mid-flow.
+  useEffect(() => {
+    if (location.pathname.startsWith("/daily-bite/")) return;
     setMode("feed");
     setSelectedExperienceId(null);
     setSelectedDailyPostId(null);
-  }, [initialCity]);
+  }, [location.pathname]);
 
   useEffect(() => {
     setSelectedTaste(initialTaste);
@@ -482,6 +542,13 @@ export function ExploreScreen({
       window.clearInterval(cycle);
     };
   }, [mode, section]);
+
+  useEffect(() => {
+    if (section !== "dailyBites" && mode === "dailyDetail") {
+      setMode("feed");
+      setSelectedDailyPostId(null);
+    }
+  }, [section, mode]);
 
   const handleOpenHost = (experienceId?: string) => {
     if (onRequireAuth && !onRequireAuth("booking")) return;
@@ -514,11 +581,13 @@ export function ExploreScreen({
   };
 
   const handleOpenDailyPost = (postId: string) => {
+    if (location.pathname !== `/daily-bite/${encodeURIComponent(postId)}`) onOpenDailyPostRoute?.(postId);
     setSelectedDailyPostId(postId);
     setMode("dailyDetail");
   };
 
   const handleToggleLike = async (postId: string) => {
+    if (myOwnedDailyPostIds.has(postId)) return;
     if (onRequireAuth && !onRequireAuth("sharing")) return;
     postLikeHydrationGeneration.current += 1;
     const post = mergedDailyPosts.find((p) => p.id === postId);
@@ -557,6 +626,7 @@ export function ExploreScreen({
       const token = await getToken({ template: "supabase" });
       if (!token) throw new Error("missing_token");
       const result = await togglePostLike(postId, user.id, token);
+      postLikeHydrationGeneration.current += 1;
       setLikedPosts((prev) => ({ ...prev, [postId]: result.liked }));
     } catch {
       // Roll back optimistic update on failure.
@@ -566,40 +636,40 @@ export function ExploreScreen({
     }
   };
 
-  const handleDeleteDailyPost = async (postId: string) => {
+  const runDeleteDailyPost = async (postId: string) => {
     if (!user?.id) return;
     const target = mergedDailyPosts.find((p) => p.id === postId);
     if (!target || !myOwnedDailyPostIds.has(postId)) return;
-    if (!window.confirm("Delete this daily bite?")) return;
     try {
       deleteLocalDailyBite(postId);
       const token = await getToken({ template: "supabase" });
       if (token) await deleteDailyBitePost(token, postId);
       setRemoteDailyPosts((prev) => prev.filter((p) => p.id !== postId));
+      setServerOwnedDailyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
       setMode("feed");
       setSelectedDailyPostId(null);
+      setDailyBiteDeleteId(null);
+      if (location.pathname.startsWith("/daily-bite/")) navigate("/explore");
     } catch {
       toast.error(t("explore.unknownError"));
     }
   };
 
-  const handleEditDailyPost = async (postId: string) => {
-    if (!user?.id) return;
-    const target = mergedDailyPosts.find((p) => p.id === postId);
-    if (!target || !myOwnedDailyPostIds.has(postId)) return;
-    const nextText = window.prompt("Edit your daily bite text", target.text);
-    if (nextText == null) return;
-    const trimmed = nextText.trim();
+  const saveDailyBiteEdit = async () => {
+    const post = dailyBiteEditPost;
+    if (!post || !user?.id || !myOwnedDailyPostIds.has(post.id)) return;
+    const trimmed = editDraft.text.trim();
     if (!trimmed) {
-      toast.error("Post text cannot be empty.");
+      toast.error(t("explore.dailyBiteEmptyBodyError"));
       return;
     }
-    const nextCityRaw = window.prompt("Edit city", target.city);
-    if (nextCityRaw == null) return;
-    const nextCity = nextCityRaw.trim() || "Local";
-    const nextBioRaw = window.prompt("Edit short bio", target.authorBio ?? "");
-    if (nextBioRaw == null) return;
-    const nextBio = nextBioRaw.trim();
+    const nextCity = editDraft.city.trim() || "Local";
+    const nextBio = editDraft.authorBio.trim();
+    const postId = post.id;
     updateLocalDailyBite(postId, (prev) => ({ ...prev, text: trimmed, city: nextCity, authorBio: nextBio }));
     setRemoteDailyPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, text: trimmed, city: nextCity, authorBio: nextBio } : p)),
@@ -611,13 +681,134 @@ export function ExploreScreen({
           body: trimmed,
           city: nextCity,
           authorBio: nextBio,
-          photoUrls: target.photoUrls ?? [],
+          photoUrls: post.photoUrls ?? [],
         });
       }
+      setDailyBiteEditPost(null);
     } catch {
-      toast.error("Saved locally, but server sync failed.");
+      toast.error(t("explore.unknownError"));
     }
   };
+
+  const dailyBiteModals = (
+    <AnimatePresence>
+      {dailyBiteEditPost ? (
+        <motion.div
+          key="daily-edit"
+          className="fixed inset-0 z-[86] flex items-end justify-center bg-black/25 p-3 sm:items-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setDailyBiteEditPost(null)}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="daily-bite-edit-title"
+            className="max-h-[min(92vh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_24px_60px_rgba(42,36,32,0.18)]"
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 16, opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="daily-bite-edit-title" className="text-[17px] font-semibold text-[#2C1A0E]">
+              {t("explore.dailyBiteEditModalTitle")}
+            </h2>
+            <label className="mt-4 block text-[12px] font-semibold text-[#A0522D]/85">
+              {t("explore.dailyBiteEditBodyLabel")}
+              <textarea
+                value={editDraft.text}
+                onChange={(e) => setEditDraft((d) => ({ ...d, text: e.target.value }))}
+                rows={5}
+                className="mt-1.5 w-full resize-y rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
+              />
+            </label>
+            <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/85">
+              {t("explore.dailyBiteEditCityLabel")}
+              <input
+                type="text"
+                value={editDraft.city}
+                onChange={(e) => setEditDraft((d) => ({ ...d, city: e.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
+              />
+            </label>
+            <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/85">
+              {t("explore.dailyBiteEditBioLabel")}
+              <input
+                type="text"
+                value={editDraft.authorBio}
+                onChange={(e) => setEditDraft((d) => ({ ...d, authorBio: e.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDailyBiteEditPost(null)}
+                className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void saveDailyBiteEdit()}
+                className="rounded-full bg-[#A0522D] px-4 py-2 text-[13px] font-semibold text-white shadow-sm"
+              >
+                {t("common.save")}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+      {dailyBiteDeleteId ? (
+        <motion.div
+          key="daily-delete"
+          className="fixed inset-0 z-[86] flex items-center justify-center bg-black/25 p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setDailyBiteDeleteId(null)}
+        >
+          <motion.div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="daily-bite-del-title"
+            aria-describedby="daily-bite-del-desc"
+            className="w-full max-w-sm rounded-2xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_24px_60px_rgba(42,36,32,0.18)]"
+            initial={{ scale: 0.96, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.96, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="daily-bite-del-title" className="text-[17px] font-semibold text-[#2C1A0E]">
+              {t("explore.dailyBiteDeleteConfirmTitle")}
+            </h2>
+            <p id="daily-bite-del-desc" className="mt-2 text-[14px] leading-relaxed text-[#2C1A0E]/85">
+              {t("explore.dailyBiteDeleteConfirmBody")}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDailyBiteDeleteId(null)}
+                className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void runDeleteDailyPost(dailyBiteDeleteId)}
+                className="rounded-full bg-red-600 px-4 py-2 text-[13px] font-semibold text-white shadow-sm"
+              >
+                {t("explore.dailyBiteDeleteConfirm")}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
 
   if (mode === "detail" && selectedExperience) {
     return (
@@ -643,13 +834,17 @@ export function ExploreScreen({
 
   if (mode === "dailyDetail" && selectedDailyPost) {
     return (
-      <main className="min-h-[100svh] bg-[#FDFAF5] pb-24">
+      <>
+      <main className="flex min-h-0 min-h-full flex-col overflow-hidden bg-[#FDFAF5]">
         <LayoutGroup id="daily-bite-shared">
-          <div className="px-5 pt-6">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-8 pt-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setMode("feed")}
+                onClick={() => {
+                  setMode("feed");
+                  if (location.pathname.startsWith("/daily-bite/")) navigate("/explore");
+                }}
                 className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#A0522D]"
               >
                 {t("explore.backDailyBites")}
@@ -667,7 +862,6 @@ export function ExploreScreen({
               >
                 <DailyBiteCard
                   post={selectedDailyPost}
-                  detail
                   canManage={myOwnedDailyPostIds.has(selectedDailyPost.id)}
                   canSayHi={!myOwnedDailyPostIds.has(selectedDailyPost.id)}
                   liked={Boolean(likedPosts[selectedDailyPost.id])}
@@ -675,8 +869,9 @@ export function ExploreScreen({
                   commentCount={commentCounts[selectedDailyPost.id] ?? selectedDailyPost.commentCount ?? 0}
                   animateLike={likePopPostId === selectedDailyPost.id}
                   onToggleLike={() => void handleToggleLike(selectedDailyPost.id)}
-                  onEdit={() => void handleEditDailyPost(selectedDailyPost.id)}
-                  onDelete={() => void handleDeleteDailyPost(selectedDailyPost.id)}
+                  allowLike={!myOwnedDailyPostIds.has(selectedDailyPost.id)}
+                  onEdit={() => setDailyBiteEditPost(selectedDailyPost)}
+                  onDelete={() => setDailyBiteDeleteId(selectedDailyPost.id)}
                   onSayHiHost={onSayHiHost}
                 />
               </motion.div>
@@ -684,7 +879,6 @@ export function ExploreScreen({
             <DailyBiteCommentsSection
               postId={selectedDailyPost.id}
               postAuthorClerkId={selectedDailyPost.authorClerkId}
-              baselineRemoteCount={selectedDailyPost.commentCount ?? 0}
               onRequireAuth={onRequireAuth}
               getToken={getToken}
               onReward={() => {
@@ -711,17 +905,17 @@ export function ExploreScreen({
           ) : null}
         </AnimatePresence>
       </main>
+      {dailyBiteModals}
+      </>
     );
   }
 
   return (
-    <main className="min-h-[100svh] bg-[#FDFAF5] pb-24">
-      <div className="px-5 pt-6">
+    <>
+    <main className="flex min-h-0 min-h-full flex-col overflow-hidden bg-[#FDFAF5]">
+      <div className="shrink-0 px-5 pt-6">
         <div className="flex items-start justify-between gap-3">
-          <div
-            className="text-[24px] font-semibold text-[#A0522D]"
-            style={{ fontFamily: "'Patrick Hand', cursive" }}
-          >
+          <div className="font-brand-display text-[24px] font-semibold text-[#A0522D]">
             {t("explore.title")}
           </div>
           {activityBell}
@@ -787,7 +981,12 @@ export function ExploreScreen({
             {t("explore.guestTeaser")}
           </div>
         ) : null}
+      </div>
 
+      <div
+        key={section}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-8"
+      >
         {section === "dailyBites" ? (
           filteredDailyPosts.length ? (
             <LayoutGroup id="daily-bite-shared">
@@ -809,6 +1008,9 @@ export function ExploreScreen({
                     commentCount={commentCounts[post.id] ?? post.commentCount ?? 0}
                     animateLike={likePopPostId === post.id}
                     onToggleLike={() => void handleToggleLike(post.id)}
+                    allowLike={!myOwnedDailyPostIds.has(post.id)}
+                    onEdit={() => setDailyBiteEditPost(post)}
+                    onDelete={() => setDailyBiteDeleteId(post.id)}
                     onSayHiHost={onSayHiHost}
                   />
                 </motion.article>
@@ -817,7 +1019,7 @@ export function ExploreScreen({
             </LayoutGroup>
           ) : (
             <div className="mt-6 rounded-[26px] bg-white/60 px-6 py-10 text-center shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
-              <div className="text-[24px] text-[#A0522D]" style={{ fontFamily: "'Patrick Hand', cursive" }}>
+              <div className="font-brand-display text-[24px] text-[#A0522D]">
                 {t("explore.noDailyBitesTitle")}
               </div>
               <p className="mt-3 text-sm text-[#A0522D]/70">
@@ -830,7 +1032,7 @@ export function ExploreScreen({
             {sortedExperiences.map((experience) => (
               <div
                 key={experience.id}
-                className="rounded-[26px] bg-white/60 p-0 shadow-[0_18px_55px_rgba(0,0,0,0.06)]"
+                className="invite-experience-card rounded-[26px] bg-white/60 p-0 shadow-[0_18px_55px_rgba(0,0,0,0.06)]"
               >
                 <div className="overflow-hidden rounded-[26px]">
                   {experience.coverPhotoUrl ? (
@@ -879,8 +1081,7 @@ export function ExploreScreen({
                           <button
                             type="button"
                             onClick={(e) => handleSayHi(experience.id, e)}
-                            className="inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-2.5 py-1 text-[11px] font-semibold text-[#A0522D] transition hover:bg-[#A0522D]/5"
-                            style={{ fontFamily: "'Patrick Hand', cursive" }}
+                            className="font-brand-display inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-2.5 py-1 text-[11px] font-semibold text-[#A0522D] transition hover:bg-[#A0522D]/5"
                           >
                             <MessageCircle className="h-3 w-3 opacity-80" strokeWidth={2} />
                             Say Hi
@@ -910,17 +1111,11 @@ export function ExploreScreen({
                     onClick={() => handleOpenDetail(experience.id)}
                     className="mt-3 block text-left"
                   >
-                    <h3
-                      className="text-[18px] font-semibold text-[#A0522D]"
-                      style={{ fontFamily: "'Patrick Hand', cursive" }}
-                    >
+                    <h3 className="font-brand-display text-[18px] font-semibold text-[#A0522D]">
                       {experience.title}
                     </h3>
                   </button>
-                  <p
-                    className="mt-2 text-[13px] leading-5 text-[#A0522D]/70"
-                    style={{ fontFamily: "'Noto Sans KR', sans-serif" }}
-                  >
+                  <p className="font-body-ko mt-2 text-[13px] leading-5 text-[#A0522D]/70">
                     {isGuestViewer
                       ? `${experience.about.slice(0, 72).trim()}...`
                       : experience.about}
@@ -931,8 +1126,7 @@ export function ExploreScreen({
                       {experience.includedItems.map((item) => (
                         <span
                           key={item.id}
-                          className="inline-flex items-center gap-1 rounded-full border border-[#E8DED4] bg-[#FFFCF8]/95 px-2.5 py-1.5 text-[12px] font-medium text-[#5C4033] shadow-[0_1px_3px_rgba(160,82,45,0.06)]"
-                          style={{ fontFamily: "'Noto Sans KR', sans-serif" }}
+                          className="font-body-ko inline-flex items-center gap-1 rounded-full border border-[#E8DED4] bg-[#FFFCF8]/95 px-2.5 py-1.5 text-[12px] font-medium text-[#5C4033] shadow-[0_1px_3px_rgba(160,82,45,0.06)]"
                         >
                           <Check
                             className="h-3.5 w-3.5 shrink-0 text-[#A0522D]/65"
@@ -962,10 +1156,7 @@ export function ExploreScreen({
           </div>
         ) : (
           <div className="mt-6 rounded-[26px] bg-white/60 px-6 py-10 text-center shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
-            <div
-              className="text-[24px] text-[#A0522D]"
-              style={{ fontFamily: "'Patrick Hand', cursive" }}
-            >
+            <div className="font-brand-display text-[24px] text-[#A0522D]">
               {t("explore.noInvitationsTitle")}
             </div>
             <p className="mt-3 text-sm text-[#A0522D]/70">
@@ -981,14 +1172,16 @@ export function ExploreScreen({
         </div>
       ) : null}
     </main>
+    {dailyBiteModals}
+    </>
   );
 }
 
 function DailyBiteCard({
   post,
-  detail = false,
   canManage = false,
   canSayHi = true,
+  allowLike = true,
   liked = false,
   likeCount = 0,
   commentCount: commentCountProp,
@@ -999,9 +1192,10 @@ function DailyBiteCard({
   onSayHiHost,
 }: {
   post: DailyBitePost;
-  detail?: boolean;
   canManage?: boolean;
   canSayHi?: boolean;
+  /** When false (e.g. own post), like is disabled — cannot interact with own post likes from the card. */
+  allowLike?: boolean;
   liked?: boolean;
   likeCount?: number;
   commentCount?: number;
@@ -1012,20 +1206,36 @@ function DailyBiteCard({
   onSayHiHost?: (host: { hostId: string; hostName: string }) => void;
 }) {
   const { t } = useTranslation("common");
+  const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const postMenuRef = useRef<HTMLDivElement | null>(null);
   const displayBody = useDisplayPostBody(post.id, post.text);
   const commentCount = commentCountProp ?? post.commentCount ?? 0;
-  const normalizedHostId = `daily-author:${post.authorName.trim().toLowerCase().replace(/\s+/g, "-")}`;
+  const clerkHostId = normalizeId(post.authorClerkId != null ? String(post.authorClerkId) : "");
+  const normalizedHostId = clerkHostId
+    ? `host:${clerkHostId}`
+    : `daily-author:${post.authorName.trim().toLowerCase().replace(/\s+/g, "-")}`;
+
+  useEffect(() => {
+    if (!postMenuOpen) return;
+    const close = (ev: Event) => {
+      const el = postMenuRef.current;
+      if (el && !el.contains(ev.target as Node)) setPostMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [postMenuOpen]);
+
   return (
     <article className="rounded-[26px] bg-white/60 p-5 shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#EDD5C0] bg-[#F0E4D8]">
             {post.authorImageUrl ? (
               <img src={post.authorImageUrl} alt={post.authorName} className="h-full w-full object-cover" />
             ) : null}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="text-[14px] font-semibold text-[#A0522D]">{post.authorName}</div>
               {canSayHi ? (
                 <button
@@ -1046,6 +1256,54 @@ function DailyBiteCard({
             </div>
           </div>
         </div>
+        {canManage ? (
+          <div className="relative shrink-0" ref={postMenuRef}>
+            <button
+              type="button"
+              aria-label={t("explore.dailyBitePostMenuAria")}
+              aria-expanded={postMenuOpen}
+              aria-haspopup="menu"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPostMenuOpen((o) => !o);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EDD5C0] bg-white/90 text-[#A0522D] shadow-sm transition-colors hover:bg-[#A0522D]/5"
+            >
+              <MoreVertical className="h-4 w-4" strokeWidth={2} />
+            </button>
+            {postMenuOpen ? (
+              <div
+                role="menu"
+                className="absolute right-0 top-[calc(100%+4px)] z-30 min-w-[9.5rem] overflow-hidden rounded-xl border border-[#E6D2BF] bg-[#FFFBF6] py-1 shadow-[0_16px_40px_rgba(42,36,32,0.14)]"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPostMenuOpen(false);
+                    onEdit?.();
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-[#2C1A0E] hover:bg-[#A0522D]/8"
+                >
+                  {t("common.edit")}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPostMenuOpen(false);
+                    onDelete?.();
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50"
+                >
+                  {t("common.delete")}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {post.photoUrls?.length ? (
@@ -1060,8 +1318,8 @@ function DailyBiteCard({
 
       <p className="mt-4 text-[14px] leading-6 text-[#2C1A0E]">{displayBody}</p>
 
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex items-center gap-4 text-[12px] font-semibold text-[#A0522D]/70">
+      <div className="mt-3 flex items-center gap-4 text-[12px] font-semibold text-[#A0522D]/70">
+        {allowLike ? (
           <motion.button
             type="button"
             onClick={(e) => {
@@ -1073,36 +1331,18 @@ function DailyBiteCard({
             transition={{ duration: 0.22, ease: "easeOut" }}
             className="inline-flex items-center gap-1"
           >
-            <Heart className="h-3.5 w-3.5" fill={liked ? "#A0522D" : "transparent"} color={liked ? "#A0522D" : "currentColor"} /> {likeCount}
+            <Heart className="h-3.5 w-3.5" fill={liked ? "#A0522D" : "transparent"} color={liked ? "#A0522D" : "currentColor"} />{" "}
+            {likeCount}
           </motion.button>
-          <span className="inline-flex items-center gap-1">
-            <MessageSquare className="h-3.5 w-3.5" /> {commentCount}
+        ) : (
+          <span className="inline-flex cursor-default items-center gap-1 opacity-45" aria-label={t("explore.like")}>
+            <Heart className="h-3.5 w-3.5" fill={liked ? "#A0522D" : "transparent"} color={liked ? "#A0522D" : "currentColor"} />{" "}
+            {likeCount}
           </span>
-        </div>
-        {canManage ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit?.();
-              }}
-              className="rounded-full border border-[#EDD5C0] bg-white px-3 py-1 text-[11px] font-semibold text-[#A0522D]"
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.();
-              }}
-              className="rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold text-red-600"
-            >
-              Delete
-            </button>
-          </div>
-        ) : null}
+        )}
+        <span className="inline-flex items-center gap-1">
+          <MessageSquare className="h-3.5 w-3.5" /> {commentCount}
+        </span>
       </div>
     </article>
   );
@@ -1135,18 +1375,38 @@ function loadStoredComments(postId: string): StoredComment[] {
   }
 }
 
-function loadStoredCommentsLength(postId: string) {
-  return loadStoredComments(postId).length;
-}
-
 function persistStoredComments(postId: string, rows: StoredComment[]) {
   window.localStorage.setItem(dailyCommentsStorageKey(postId), JSON.stringify(rows));
+}
+
+function mapRemoteCommentToStored(r: RemoteDailyBiteCommentRow): StoredComment {
+  return {
+    id: r.id,
+    authorId: r.author_clerk_id,
+    authorName: r.author_name?.trim() || "Someone",
+    text: r.body,
+    createdAt: r.created_at,
+    likedBy: [],
+    likesCount: 0,
+  };
+}
+
+function mergeCommentThreads(local: StoredComment[], remote: StoredComment[]): StoredComment[] {
+  const map = new Map<string, StoredComment>();
+  for (const row of remote) map.set(row.id, row);
+  for (const row of local) {
+    if (!map.has(row.id)) map.set(row.id, row);
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    const ta = Date.parse(a.createdAt) || 0;
+    const tb = Date.parse(b.createdAt) || 0;
+    return ta - tb;
+  });
 }
 
 function DailyBiteCommentsSection({
   postId,
   postAuthorClerkId,
-  baselineRemoteCount,
   onRequireAuth,
   getToken,
   onReward,
@@ -1154,7 +1414,6 @@ function DailyBiteCommentsSection({
 }: {
   postId: string;
   postAuthorClerkId?: string | null;
-  baselineRemoteCount: number;
   onRequireAuth?: (kind: LoginPromptKind) => boolean;
   getToken: ReturnType<typeof useAuth>["getToken"];
   onReward?: () => void;
@@ -1165,6 +1424,7 @@ function DailyBiteCommentsSection({
   const [comments, setComments] = useState<StoredComment[]>(() => loadStoredComments(postId));
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [submitBusy, setSubmitBusy] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const commentLikeHydrationGeneration = useRef(0);
 
@@ -1176,13 +1436,24 @@ function DailyBiteCommentsSection({
 
   useEffect(() => {
     let cancelled = false;
-    const loaded = loadStoredComments(postId);
     const baseline = commentLikeHydrationGeneration.current;
     void (async () => {
       try {
         const token = await getToken({ template: "supabase" });
-        if (!token || !user?.id || cancelled) return;
-        const ids = loaded.map((c) => c.id);
+        const local = loadStoredComments(postId);
+        let merged: StoredComment[];
+        if (token) {
+          const remoteRows = await fetchDailyBiteComments(token, postId);
+          const remote = remoteRows.map(mapRemoteCommentToStored);
+          merged = mergeCommentThreads(local, remote);
+        } else {
+          merged = local;
+        }
+        if (cancelled) return;
+        setComments(merged);
+
+        if (!token || !user?.id) return;
+        const ids = merged.map((c) => c.id);
         if (!ids.length) return;
         const [counts, myLikes] = await Promise.all([
           fetchLikeCountsForComments(token, ids),
@@ -1200,7 +1471,7 @@ function DailyBiteCommentsSection({
           })),
         );
       } catch {
-        // Table missing or offline — keep local-only state.
+        if (!cancelled) setComments(loadStoredComments(postId));
       }
     })();
     return () => {
@@ -1210,10 +1481,10 @@ function DailyBiteCommentsSection({
 
   useEffect(() => {
     persistStoredComments(postId, comments);
-    onCommentTotalChange?.(baselineRemoteCount + comments.length);
+    onCommentTotalChange?.(comments.length);
     // Parent may pass an inline handler; avoid re-running on identity change only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baselineRemoteCount, comments, postId]);
+  }, [comments, postId]);
 
   if (!user?.id) return null;
 
@@ -1232,7 +1503,7 @@ function DailyBiteCommentsSection({
   };
 
   const submit = async () => {
-    if (!draft.trim()) return;
+    if (!draft.trim() || submitBusy) return;
     const trimmed = draft.trim();
     const alreadyRewarded = window.localStorage.getItem(rewardKey) === "1";
     const replyMatch = trimmed.match(/^@([^\s]+)\s*/);
@@ -1242,43 +1513,72 @@ function DailyBiteCommentsSection({
       ? comments.find((c) => c.authorName === replyTargetName)
       : undefined;
 
-    const row: StoredComment = {
-      id: crypto.randomUUID(),
-      authorId: user.id,
-      authorName: actorName,
-      text: trimmed,
-      createdAt: new Date().toISOString(),
-      likedBy: [],
-      likesCount: 0,
-    };
+    setSubmitBusy(true);
+    setMsg(null);
+
+    let row: StoredComment;
+    try {
+      const token = await getToken({ template: "supabase" });
+      if (token) {
+        const inserted = await insertDailyBiteComment(token, {
+          postId,
+          authorClerkId: user.id,
+          authorName: actorName,
+          body: trimmed,
+        });
+        if (inserted) {
+          row = {
+            id: inserted.id,
+            authorId: user.id,
+            authorName: actorName,
+            text: trimmed,
+            createdAt: inserted.createdAt,
+            likedBy: [],
+            likesCount: 0,
+          };
+        } else {
+          row = {
+            id: crypto.randomUUID(),
+            authorId: user.id,
+            authorName: actorName,
+            text: trimmed,
+            createdAt: new Date().toISOString(),
+            likedBy: [],
+            likesCount: 0,
+          };
+          setMsg(t("explore.commentSavedLocalOnly"));
+        }
+      } else {
+        row = {
+          id: crypto.randomUUID(),
+          authorId: user.id,
+          authorName: actorName,
+          text: trimmed,
+          createdAt: new Date().toISOString(),
+          likedBy: [],
+          likesCount: 0,
+        };
+      }
+    } catch {
+      row = {
+        id: crypto.randomUUID(),
+        authorId: user.id,
+        authorName: actorName,
+        text: trimmed,
+        createdAt: new Date().toISOString(),
+        likedBy: [],
+        likesCount: 0,
+      };
+      setMsg(t("explore.commentSavedLocalOnly"));
+    } finally {
+      setSubmitBusy(false);
+    }
+
+    setComments((prev) => [...prev, row]);
+    setDraft("");
 
     try {
-      if (!alreadyRewarded) {
-        const token = await getToken({ template: "supabase" });
-        if (!token) {
-          window.dispatchEvent(
-            new CustomEvent("inbite-apply-bite", {
-              detail: {
-                clerkId: user.id,
-                delta: BITE_REWARD_COMMENT,
-                kind: "comment",
-                meta: { post_id: postId },
-              },
-            }),
-          );
-        } else {
-          await applyBiteDeltaServer(user.id, token, BITE_REWARD_COMMENT, "comment", { post_id: postId });
-        }
-        window.localStorage.setItem(rewardKey, "1");
-        onReward?.();
-      }
-
-      setComments((prev) => [...prev, row]);
-      setDraft("");
-      setMsg(null);
-
-      const preview =
-        trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
+      const preview = trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
 
       if (postAuthorClerkId && postAuthorClerkId !== user.id) {
         const content = isReply
@@ -1311,7 +1611,32 @@ function DailyBiteCommentsSection({
         });
       }
     } catch {
-      setMsg(t("explore.rewardFail"));
+      // Notifications are best-effort; comment text is already persisted locally.
+    }
+
+    if (!alreadyRewarded) {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token) {
+          window.dispatchEvent(
+            new CustomEvent("inbite-apply-bite", {
+              detail: {
+                clerkId: user.id,
+                delta: BITE_REWARD_COMMENT,
+                kind: "comment",
+                meta: { post_id: postId },
+              },
+            }),
+          );
+        } else {
+          await applyBiteDeltaServer(user.id, token, BITE_REWARD_COMMENT, "comment", { post_id: postId });
+        }
+        window.localStorage.setItem(rewardKey, "1");
+        onReward?.();
+      } catch (rewardErr) {
+        console.warn("BITE comment reward failed", rewardErr);
+        setMsg(t("explore.rewardFailSoft"));
+      }
     }
   };
 
@@ -1407,9 +1732,10 @@ function DailyBiteCommentsSection({
         <button
           type="button"
           onClick={() => void submit()}
-          className="mt-2 w-full rounded-xl bg-[#A0522D] py-2 text-[12px] font-semibold text-white"
+          disabled={submitBusy}
+          className="mt-2 w-full rounded-xl bg-[#A0522D] py-2 text-[12px] font-semibold text-white disabled:opacity-60"
         >
-          {t("explore.postComment")}
+          {submitBusy ? "…" : t("explore.postComment")}
         </button>
         {msg ? <p className="mt-2 text-[11px] text-[#A0522D]/75">{msg}</p> : null}
       </div>

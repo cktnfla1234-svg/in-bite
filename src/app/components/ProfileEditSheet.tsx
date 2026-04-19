@@ -248,6 +248,26 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
     setCropZoom((z) => clamp(z + delta, 1, 3));
   }, []);
 
+  const submitProfile = async () => {
+    setSaveError("");
+    setSaveBusy(true);
+    console.info("[ProfileEditSheet] save submit", {
+      nameLen: draft.name.trim().length,
+      hasProfilePhoto: Boolean(draft.profilePhoto),
+      galleryCount: draft.photos.length,
+    });
+    try {
+      await Promise.resolve(onSave(draft));
+      console.info("[ProfileEditSheet] save finished OK");
+      onClose();
+    } catch (err) {
+      console.error("[ProfileEditSheet] save failed", err);
+      setSaveError(err instanceof Error ? err.message : "Could not save. Please try again.");
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {open ? (
@@ -274,13 +294,23 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
                   </button>
                 </div>
 
-                <div className="mt-4">
+                <form
+                  className="mt-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void submitProfile();
+                  }}
+                >
                   <div className="text-[12px] font-semibold text-[#A0522D]/70">Profile photo</div>
                   <div className="mt-3 rounded-2xl border border-[#EDD5C0] bg-white/55 p-3">
                     <div className="flex items-center gap-3">
                       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-[#EDD5C0] bg-white">
                         {draft.profilePhoto ? (
-                          <img src={draft.profilePhoto} alt="Profile avatar" className="h-full w-full object-cover" />
+                          <img
+                            src={draft.profilePhoto}
+                            alt="Profile avatar"
+                            className="h-full w-full object-cover object-center"
+                          />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-2xl text-[#A0522D]/45">👤</div>
                         )}
@@ -436,27 +466,13 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
                   {saveError ? <p className="mt-3 text-center text-[12px] font-medium text-red-600">{saveError}</p> : null}
 
                   <button
-                    type="button"
+                    type="submit"
                     disabled={saveBusy}
                     className="mt-5 w-full rounded-2xl bg-[#A0522D] py-4 text-[15px] font-semibold text-white disabled:opacity-60"
-                    onClick={() => {
-                      void (async () => {
-                        setSaveError("");
-                        setSaveBusy(true);
-                        try {
-                          await Promise.resolve(onSave(draft));
-                          onClose();
-                        } catch (err) {
-                          setSaveError(err instanceof Error ? err.message : "Could not save. Please try again.");
-                        } finally {
-                          setSaveBusy(false);
-                        }
-                      })();
-                    }}
                   >
                     {saveBusy ? "Saving…" : "Save Changes"}
                   </button>
-                </div>
+                </form>
               </div>
             </div>
           </motion.div>
@@ -498,7 +514,7 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
                 >
                   <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
                     <div
-                      className="relative overflow-hidden rounded-full border-[3px] border-[#A0522D]/40 shadow-[0_16px_48px_rgba(160,82,45,0.22)]"
+                      className="relative overflow-hidden rounded-full shadow-[0_16px_48px_rgba(160,82,45,0.22)]"
                       style={{ width: cropDiameter, height: cropDiameter }}
                     >
                       <img
@@ -512,6 +528,10 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
                           left: `${(cropDiameter - displayW) / 2 + cropX}px`,
                           top: `${(cropDiameter - displayH) / 2 + cropY}px`,
                         }}
+                      />
+                      <div
+                        className="pointer-events-none absolute inset-0 rounded-full ring-[3px] ring-inset ring-[#A0522D]/40"
+                        aria-hidden
                       />
                     </div>
                   </div>

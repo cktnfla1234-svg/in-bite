@@ -66,7 +66,7 @@ export function BottomNav({ activeTab, onTabChange, chatUnreadCount = 0 }: Botto
   const { t } = useTranslation("common");
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center"
+      className="fixed bottom-0 left-0 right-0 z-[94] flex items-center"
       style={{
         background: "rgba(253,250,245,0.97)",
         backdropFilter: "blur(12px)",
@@ -91,9 +91,8 @@ export function BottomNav({ activeTab, onTabChange, chatUnreadCount = 0 }: Botto
               ) : null}
             </div>
             <span
-              className="text-[10px] tracking-wider"
+              className="font-brand-display text-[10px] tracking-wider"
               style={{
-                fontFamily: "'Patrick Hand', cursive",
                 color: isActive ? "#A0522D" : "#C4A882",
                 letterSpacing: "0.07em",
               }}

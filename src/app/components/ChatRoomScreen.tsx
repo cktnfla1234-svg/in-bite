@@ -110,7 +110,7 @@ export function ChatRoomScreen({
   };
 
   return (
-    <div className="min-h-[100svh] bg-[#FDFAF5] pb-24 pt-6">
+    <div className="min-h-full w-full bg-[#FDFAF5] pb-24 pt-6">
       <div className="px-5">
         <button
           type="button"
@@ -157,7 +157,7 @@ export function ChatRoomScreen({
                       isIce
                         ? "rounded-[18px] border border-dashed border-[#C88467] bg-[#FFF3EB] px-4 py-3 text-[13px] leading-5 text-[#8F4A2D]"
                         : isInviteCard
-                          ? "rounded-[18px] border border-[#DDBFA8] bg-[#FFF8F1] px-4 py-3 text-[13px] leading-5 text-[#8F4A2D]"
+                          ? "companion-invite-card rounded-[18px] border border-[#DDBFA8] bg-[#FFF8F1] px-4 py-3 text-[13px] leading-5 text-[#8F4A2D]"
                           : isPaymentCard
                             ? "rounded-[18px] border border-[#D7C2AE] bg-[#FFFCF7] px-4 py-3 text-[13px] leading-5 text-[#8F4A2D]"
                             : isGiftCard

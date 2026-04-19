@@ -59,7 +59,15 @@ In Clerk Dashboard:
 
 1. Go to **JWT Templates**.
 2. Create template named exactly: `supabase`
-3. Keep `sub` claim (required by current Supabase RLS policy: `auth.jwt()->>'sub' = clerk_id`).
+3. Ensure the JWT **`sub` (subject) claim is the Clerk user id** — the same string as `user.id` from `@clerk/clerk-react` / Dashboard → Users → a user → **User ID** (often looks like `user_...`).  
+   This app’s RLS and inserts assume:
+
+   - `public.profiles.clerk_id` = that Clerk user id  
+   - `public.daily_bites.author_clerk_id` = that Clerk user id  
+   - Supabase evaluates policies as `auth.jwt()->>'sub' = clerk_id` (or `author_clerk_id`)
+
+   Clerk’s default JWT template claims include `sub` for the signed-in user; **do not** override `sub` with a different value (e.g. email or internal numeric id).
+
 4. Save template.
 
 This app calls:
@@ -67,6 +75,30 @@ This app calls:
 - `getToken({ template: "supabase" })`
 
 without this template, profile sync cannot write to Supabase.
+
+### 4.1) Repo check (what the code assumes)
+
+These must all use the **same** Clerk user id string:
+
+| Place | Field / API |
+| --- | --- |
+| `src/lib/profile.ts` | `upsert` / `update` / `select` on `profiles` with `clerk_id: user.id` |
+| `src/lib/remoteDailyBites.ts` | `author_clerk_id` on insert; `eq("author_clerk_id", clerkId)` on “my posts” |
+| `src/app/components/*` | `getToken({ template: "supabase" })` and `user.id` for ownership |
+
+So **`jwt.sub` must equal `user.id`** from Clerk for RLS to allow reads/writes tied to that row.
+
+### 4.2) How you can verify (2 minutes, in your dashboards)
+
+1. **Clerk** — JWT Templates → open **`supabase`** → confirm the payload still exposes standard **`sub`** (Clerk user id). If you use a custom body, include nothing that replaces `sub` with another identifier.
+2. **Signed-in app (local dev)** — After login, in DevTools console you can decode the middle segment of the JWT from `getToken({ template: "supabase" })` (base64url JSON) and read `"sub"`. It must match **`user.id`** in React and the **`clerk_id`** column for your row in `public.profiles`.
+3. **Supabase** — Table Editor → `profiles` → your row: `clerk_id` text must equal that same `sub` value.
+
+If `sub` ≠ `profiles.clerk_id`, RLS will reject updates even when the user is logged in.
+
+### 4.3) Newer Clerk + Supabase option (optional)
+
+Supabase now documents **Third-Party Auth with Clerk** (session tokens + Supabase dashboard integration) as the recommended path; the older **JWT template + Supabase JWT secret** flow is still usable but labeled deprecated. This repo currently uses **`getToken({ template: "supabase" })`** (template path). Migrating to third-party auth would require coordinated Clerk + Supabase dashboard changes and client token wiring — not required for the contract above as long as `sub` matches `clerk_id`.
 
 ## 5) Run + Verify Locally
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BottomNav } from "@/app/components/BottomNav";
 import { FloatingActionButton } from "@/app/components/FloatingActionButton";
 import { ExploreScreen } from "@/app/components/ExploreScreen";
@@ -50,6 +50,12 @@ type AppShellProps = {
   initialChatRoomId?: string | null;
   /** When Clerk + Supabase JWT template are configured (signed-in routes only). */
   getSupabaseToken?: () => Promise<string | null>;
+  /** Optional initial tab for deep links. */
+  initialTab?: Tab;
+  /** Optional initial explore section for deep links. */
+  initialExploreSection?: "invitations" | "dailyBites";
+  /** Optional initial post id for /daily-bite/:postId deep links. */
+  initialDailyPostId?: string | null;
 };
 
 const NEW_ACCOUNT_MAX_AGE_MS = 30 * 60 * 1000;
@@ -79,8 +85,11 @@ export default function AppShell({
   welcomeClerkAccountCreatedAt = null,
   initialChatRoomId = null,
   getSupabaseToken,
+  initialTab = "home",
+  initialExploreSection = "invitations",
+  initialDailyPostId = null,
 }: AppShellProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [createOpen, setCreateOpen] = useState(false);
   const [createDailyInbiteOpen, setCreateDailyInbiteOpen] = useState(false);
   const [authState, setAuthState] = useState<{
@@ -94,7 +103,7 @@ export default function AppShell({
   });
   const [searchCity, setSearchCity] = useState("");
   const [searchTaste, setSearchTaste] = useState<string | null>(null);
-  const [exploreSection, setExploreSection] = useState<"invitations" | "dailyBites">("invitations");
+  const [exploreSection, setExploreSection] = useState<"invitations" | "dailyBites">(initialExploreSection);
   const [loginPrompt, setLoginPrompt] = useState<{ open: boolean; kind: LoginPromptKind }>({
     open: false,
     kind: "chat",
@@ -107,17 +116,28 @@ export default function AppShell({
   const [isConnectingChat, setIsConnectingChat] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityTick, setActivityTick] = useState(0);
-  const [pendingDailyPostId, setPendingDailyPostId] = useState<string | null>(null);
+  const [pendingDailyPostId, setPendingDailyPostId] = useState<string | null>(initialDailyPostId);
   const seenToastNotificationIds = useState(() => new Set<string>())[0];
   const chatUnreadCount = 0;
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation("common");
+  const tabScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (el) el.scrollTop = 0;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [activeTab, exploreSection]);
 
   const handleSearch = (query: string, taste?: string | null) => {
     setSearchCity(query);
     setSearchTaste(taste ?? null);
     setExploreSection("invitations");
     setActiveTab("explore");
+    if (location.pathname !== "/explore") navigate("/explore");
   };
 
   const handleCardClick = (id: string) => {
@@ -329,6 +349,34 @@ export default function AppShell({
   }, [isSignedIn, welcomeClerkUserId, welcomeClerkAccountCreatedAt]);
 
   useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith("/chat/")) {
+      setActiveTab("chat");
+      return;
+    }
+    if (path.startsWith("/daily-bite/")) {
+      const rawPostId = path.split("/daily-bite/")[1] ?? "";
+      const decodedPostId = decodeURIComponent(rawPostId);
+      if (decodedPostId) setPendingDailyPostId(decodedPostId);
+      setExploreSection("dailyBites");
+      setActiveTab("explore");
+      return;
+    }
+    if (path.startsWith("/explore")) {
+      setActiveTab("explore");
+      return;
+    }
+    if (path === "/app") {
+      setActiveTab("home");
+      return;
+    }
+  }, [location.pathname]);
+
+  const handleChatLaunchConsumed = useCallback(() => {
+    setChatLaunch(null);
+  }, []);
+
+  useEffect(() => {
     if (!initialChatRoomId) return;
     setActiveTab("chat");
     setChatLaunch({ chatId: initialChatRoomId, nonce: Date.now() });
@@ -397,13 +445,14 @@ export default function AppShell({
         onOpenActivity={handleOpenActivity}
         openDailyPostId={pendingDailyPostId}
         onConsumedOpenDailyPost={() => setPendingDailyPostId(null)}
+        onOpenDailyPostRoute={(postId) => navigate(`/daily-bite/${encodeURIComponent(postId)}`)}
       />
     ),
     chat: (
       <ChatScreen
         openGroupChatNonce={groupChatInviteNonce}
         chatLaunch={chatLaunch}
-        onChatLaunchConsumed={() => setChatLaunch(null)}
+        onChatLaunchConsumed={handleChatLaunchConsumed}
         myUserId={welcomeClerkUserId ?? "guest"}
       />
     ),
@@ -419,7 +468,7 @@ export default function AppShell({
 
   return (
     <PreferredCurrencyProvider>
-    <div className="relative min-h-[100svh] bg-[#FDFAF5]">
+    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#FDFAF5]">
       <Toaster
         richColors={false}
         toastOptions={{
@@ -431,17 +480,27 @@ export default function AppShell({
           },
         }}
       />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {screenMap[activeTab]}
-        </motion.div>
-      </AnimatePresence>
+      <div
+        ref={tabScrollRef}
+        className="relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+        style={{ paddingBottom: "calc(5.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            className="relative min-h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{
+              opacity: 0,
+              transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+            }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {screenMap[activeTab]}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       <BottomNav
         activeTab={activeTab}
@@ -450,11 +509,14 @@ export default function AppShell({
           if (next === "profile" && !requireAuth("booking")) return;
           if (next === "chat" && !requireAuth("chat")) return;
           setActiveTab(next);
+          if (next === "explore" && location.pathname !== "/explore") navigate("/explore");
+          if (next === "home" && location.pathname !== "/app") navigate("/app");
         }}
       />
 
       {activeTab !== "chat" ? (
         <FloatingActionButton
+          autoInvitationTooltip={activeTab === "explore" && exploreSection === "invitations"}
           onClick={() => {
             if (!requireAuth("sharing")) return;
             if (activeTab === "explore" && exploreSection === "dailyBites") {

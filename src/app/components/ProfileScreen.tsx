@@ -7,6 +7,7 @@ import {
   fetchBitesHistory,
   type BiteHistoryRow,
   fetchExtendedProfile,
+  formatProfileSaveError,
   saveExtendedProfile,
 } from "@/lib/profile";
 import { compressDataUrlList } from "@/lib/imageCompress";
@@ -41,6 +42,7 @@ import {
 } from "@/lib/localDailyBites";
 import { fetchOwnDailyBites } from "@/lib/remoteDailyBites";
 import type { DailyBitePost } from "@/data/experiences";
+import { toast } from "sonner";
 
 type ProfileScreenProps = {
   onOpenCreateTour?: () => void;
@@ -75,6 +77,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   const [editingTimeline, setEditingTimeline] = useState<LocalInviteItineraryItem[]>([]);
   const [editingInviteSaving, setEditingInviteSaving] = useState(false);
   const lastMergedServerProfileUserIdRef = useRef<string | null>(null);
+  const [profileSyncTick, setProfileSyncTick] = useState(0);
 
   const TASTE_TAG_OPTIONS = [
     "Cafe Hopping",
@@ -309,14 +312,14 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
           }
           return next;
         });
-      } catch {
-        // ignore
+      } catch (err) {
+        console.warn("[ProfileScreen] fetch/merge extended profile failed", err);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [user?.id, getToken]);
+  }, [user?.id, getToken, profileSyncTick]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -360,6 +363,8 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
     const uid = user?.id;
     const storageKey = `inbite:profile:${uid ?? "guest"}`;
 
+    console.info("[ProfileSave] start", { signedIn: Boolean(uid) });
+
     const parts: string[] = [];
     if (next.profilePhoto) parts.push(next.profilePhoto);
     for (const p of next.photos) {
@@ -381,24 +386,39 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
       setProfileAvatar(uid, stored.profilePhoto);
       updateLocalDailyBiteAuthorAvatar(uid, stored.profilePhoto);
       const token = await getToken({ template: "supabase" });
-      if (token) {
-        try {
-          await saveExtendedProfile(uid, token, {
-            name: stored.name,
-            city: stored.city,
-            countryCode: stored.countryCode,
-            address: stored.address,
-            mbti: stored.mbti,
-            hobbies: stored.hobbies,
-            bio: stored.bio,
-            profilePhoto: stored.profilePhoto,
-            photos: stored.photos,
-          });
-        } catch (err) {
-          // Local save already succeeded. Keep UX unblocked even if server sync fails.
-          console.warn("saveExtendedProfile failed; keeping local profile", err);
-        }
+      if (!token) {
+        const msg = t("profile.saveMissingSupabaseToken");
+        console.error("[ProfileSave] missing Clerk JWT for Supabase (template: supabase)", { clerkId: uid });
+        toast.error(msg);
+        throw new Error(msg);
       }
+      try {
+        console.info("[ProfileSave] syncing to Supabase…", { clerkId: uid });
+        await saveExtendedProfile(uid, token, {
+          name: stored.name,
+          city: stored.city,
+          countryCode: stored.countryCode,
+          address: stored.address,
+          mbti: stored.mbti,
+          hobbies: stored.hobbies,
+          bio: stored.bio,
+          profilePhoto: stored.profilePhoto,
+          photos: stored.photos,
+        });
+        console.info("[ProfileSave] Supabase sync OK");
+        lastMergedServerProfileUserIdRef.current = null;
+        setProfileSyncTick((n) => n + 1);
+        toast.success(t("profile.saveSuccess"));
+        setEditOpen(false);
+      } catch (err) {
+        const detail = formatProfileSaveError(err);
+        console.error("[ProfileSave] Supabase sync failed", err);
+        toast.error(t("profile.saveServerFailed", { detail }));
+        throw new Error(detail);
+      }
+    } else {
+      toast.success(t("profile.saveSuccessLocal"));
+      setEditOpen(false);
     }
   };
 
@@ -513,7 +533,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   };
 
   return (
-    <main className="relative min-h-[100svh] bg-[#FDFAF5] pb-24 pt-6">
+    <main className="relative min-h-full w-full bg-[#FDFAF5] pb-24 pt-6">
       <div className="px-5">
         <div
           className="text-[26px] font-semibold text-[#A0522D]"
@@ -526,7 +546,11 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
           <div className="flex items-start gap-4">
             <div className="relative h-16 w-16 overflow-hidden rounded-full bg-[#E7D7C7] border-2 border-white/70">
               {profile.profilePhoto ? (
-                <img src={profile.profilePhoto} alt="Profile avatar" className="h-full w-full object-cover" />
+                <img
+                  src={profile.profilePhoto}
+                  alt="Profile avatar"
+                  className="h-full w-full object-cover object-center"
+                />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="h-10 w-10 rounded-full bg-[#C4A882] flex items-center justify-center">

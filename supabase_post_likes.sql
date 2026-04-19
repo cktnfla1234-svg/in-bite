@@ -1,5 +1,5 @@
--- post_likes: table + RLS (Clerk JWT `sub` = `user_id`).
--- Prefer the combined file `supabase_post_likes.sql`; this file stays for older docs / scripts.
+-- Daily Bite per-user likes (run in Supabase SQL editor after `public.daily_bites` exists).
+-- App: `src/lib/dailyBites.ts` — upsert on (post_id, user_id), Clerk id in `user_id`.
 
 create table if not exists public.post_likes (
   post_id uuid not null,

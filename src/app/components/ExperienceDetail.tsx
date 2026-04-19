@@ -11,13 +11,10 @@ type ExperienceDetailProps = {
   onSayHi?: () => void;
 };
 
-const patrick = { fontFamily: "'Patrick Hand', cursive" } as const;
-const noto = { fontFamily: "'Noto Sans KR', sans-serif" } as const;
-
 export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDetailProps) {
   const { preferredCurrency } = usePreferredCurrency();
   return (
-    <main className="min-h-[100svh] bg-[#FDFAF5] pb-28">
+    <main className="invite-experience-detail min-h-full w-full bg-[#FDFAF5] pb-28">
       <div className="relative">
         {experience.coverPhotoUrl ? (
           <img
@@ -62,20 +59,19 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
             </div>
             <div className="mb-1 min-w-0 flex-1 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.08)] ring-1 ring-[#EDD5C0]/80">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[15px] font-semibold text-[#5C3318]" style={noto}>
+                <span className="font-body-ko text-[15px] font-semibold text-[#5C3318]">
                   {experience.hostName}
                 </span>
                 <button
                   type="button"
                   onClick={() => onSayHi?.()}
-                  className="inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-3 py-1 text-[12px] font-semibold text-[#A0522D] shadow-none transition hover:bg-[#A0522D]/5"
-                  style={patrick}
+                  className="font-brand-display inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-3 py-1 text-[12px] font-semibold text-[#A0522D] shadow-none transition hover:bg-[#A0522D]/5"
                 >
                   <MessageCircle className="h-3.5 w-3.5 opacity-80" strokeWidth={2} />
                   Say Hi
                 </button>
               </div>
-              <div className="mt-1 flex items-center gap-1 text-[12px] text-[#7A5C4E]" style={noto}>
+              <div className="font-body-ko mt-1 flex items-center gap-1 text-[12px] text-[#7A5C4E]">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-[#A0522D]/55" strokeWidth={2} />
                 <span>
                   {experience.city}, {experience.country}
@@ -87,14 +83,11 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
       </div>
 
       <div className="px-5 pt-[calc(3.5rem+36px)]">
-        <h1
-          className="text-[clamp(1.75rem,6vw,2.15rem)] leading-tight font-semibold text-[#A0522D]"
-          style={patrick}
-        >
+        <h1 className="font-brand-display text-[clamp(1.75rem,6vw,2.15rem)] leading-tight font-semibold text-[#A0522D]">
           {experience.title}
         </h1>
 
-        <div className="mt-4 flex flex-wrap items-center gap-4 text-[12px] text-[#7A5C4E]" style={noto}>
+        <div className="font-body-ko mt-4 flex flex-wrap items-center gap-4 text-[12px] text-[#7A5C4E]">
           <span className="inline-flex items-center gap-1.5">
             <Clock className="h-4 w-4 text-[#A0522D]/55" strokeWidth={2} />
             {experience.durationLabel}
@@ -106,15 +99,14 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
         </div>
 
         <section className="mt-8">
-          <h2 className="text-[1.15rem] font-semibold text-[#A0522D]" style={patrick}>
+          <h2 className="font-brand-display text-[1.15rem] font-semibold text-[#A0522D]">
             What&apos;s Included
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {experience.includedItems.map((item) => (
               <div
                 key={item.id}
-                className="inline-flex items-center gap-2 rounded-2xl border border-[#E5D8CC] bg-white/90 px-3.5 py-2 text-[12px] font-medium text-[#5C4033] shadow-[0_2px_8px_rgba(160,82,45,0.06)]"
-                style={noto}
+                className="font-body-ko inline-flex items-center gap-2 rounded-2xl border border-[#E5D8CC] bg-white/90 px-3.5 py-2 text-[12px] font-medium text-[#5C4033] shadow-[0_2px_8px_rgba(160,82,45,0.06)]"
               >
                 <Check className="h-3.5 w-3.5 shrink-0 text-[#A0522D]/75" strokeWidth={2.5} />
                 <span aria-hidden className="text-[13px] opacity-90">
@@ -127,19 +119,16 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
         </section>
 
         <section className="mt-8">
-          <h2 className="text-[1.15rem] font-semibold text-[#A0522D]" style={patrick}>
+          <h2 className="font-brand-display text-[1.15rem] font-semibold text-[#A0522D]">
             About This Experience
           </h2>
-          <p
-            className="mt-3 text-[14px] leading-[1.75] text-[#3D2A22]/90"
-            style={noto}
-          >
+          <p className="font-body-ko mt-3 text-[14px] leading-[1.75] text-[#3D2A22]/90">
             {experience.aboutDetailKo}
           </p>
         </section>
 
         <section className="mt-10">
-          <h2 className="text-[1.15rem] font-semibold text-[#A0522D]" style={patrick}>
+          <h2 className="font-brand-display text-[1.15rem] font-semibold text-[#A0522D]">
             Journey Timeline
           </h2>
 
@@ -177,11 +166,11 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
                     </div>
                   </div>
                   <div className="min-w-0 pt-0.5">
-                    <div className="text-[14px] font-semibold text-[#A0522D]" style={noto}>
+                    <div className="font-body-ko text-[14px] font-semibold text-[#A0522D]">
                       {stop.title}
                     </div>
                     {stop.description ? (
-                      <p className="mt-1 text-[12px] leading-relaxed text-[#7A6558]" style={noto}>
+                      <p className="font-body-ko mt-1 text-[12px] leading-relaxed text-[#7A6558]">
                         {stop.description}
                       </p>
                     ) : null}
@@ -194,10 +183,10 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
 
         <section className="mt-8">
           <div className="rounded-[22px] border border-[#EDD5C0]/70 bg-white/90 p-5 shadow-[0_12px_36px_rgba(0,0,0,0.05)]">
-            <h2 className="text-[1.1rem] font-semibold text-[#A0522D]" style={patrick}>
+            <h2 className="font-brand-display text-[1.1rem] font-semibold text-[#A0522D]">
               About Your Host
             </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#4A382E]" style={noto}>
+            <p className="font-body-ko mt-2 text-[13px] leading-relaxed text-[#4A382E]">
               {experience.about}
             </p>
           </div>
@@ -205,8 +194,7 @@ export function ExperienceDetail({ experience, onBack, onSayHi }: ExperienceDeta
 
         <button
           type="button"
-          className="mt-10 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F]"
-          style={patrick}
+          className="font-brand-display mt-10 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F]"
         >
           Book This Experience
         </button>

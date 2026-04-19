@@ -87,10 +87,20 @@ export async function applyBiteDeltaServer(
     p_meta: meta,
   });
 
-  if (!error && data != null) {
-    const balance = roundBiteAmount(Number(data));
-    setWalletBalance(balance, clerkId);
-    return { balance };
+  const rpcBalance =
+    data === null || data === undefined ? NaN : roundBiteAmount(Number(data as string | number));
+  if (!error && Number.isFinite(rpcBalance)) {
+    setWalletBalance(rpcBalance, clerkId);
+    return { balance: rpcBalance };
+  }
+
+  if (error) {
+    console.warn("apply_bite_delta RPC failed, falling back to client balance update", {
+      kind,
+      message: error.message,
+      code: (error as { code?: string }).code,
+      details: (error as { details?: string }).details,
+    });
   }
 
   const { data: row, error: readErr } = await supabase
@@ -324,7 +334,7 @@ export async function saveExtendedProfile(
 ) {
   const supabase = getSupabaseClient(token);
   const nowIso = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({
       image_url: payload.profilePhoto || null,
@@ -338,7 +348,36 @@ export async function saveExtendedProfile(
       profile_gallery: payload.photos,
       updated_at: nowIso,
     })
-    .eq("clerk_id", clerkId);
+    .eq("clerk_id", clerkId)
+    .select("clerk_id")
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) {
+    throw new Error(
+      "No profile row was updated (missing profiles row for this user, or RLS blocked the update).",
+    );
+  }
+}
+
+/** Human-readable PostgREST / Supabase error for profile save failures (incl. RLS hints). */
+export function formatProfileSaveError(err: unknown): string {
+  if (err == null) return "Could not save profile to the server.";
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const o = err as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const msg = typeof o.message === "string" ? o.message : String(o.message ?? "");
+    const code = typeof o.code === "string" ? o.code : "";
+    const details = typeof o.details === "string" ? o.details : "";
+    const hint = typeof o.hint === "string" ? o.hint : "";
+    const base = [msg, code && `code=${code}`, details, hint].filter(Boolean).join(" · ");
+    const text = base || "Could not save profile to the server.";
+    const rlsLike =
+      code === "42501" ||
+      /row-level security|rls|permission denied|not authorized|JWT expired|invalid JWT/i.test(text);
+    if (rlsLike) {
+      return `${text} Check Supabase RLS on public.profiles (authenticated update where auth.jwt()->>'sub' = clerk_id) and the Clerk “supabase” JWT template.`;
+    }
+    return text;
+  }
+  return String(err);
 }

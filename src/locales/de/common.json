@@ -61,6 +61,8 @@
     "activityUnreadAria": "Aktivität, ungelesene Benachrichtigungen",
     "commentReward": "0.1 BITE erhalten! 🍪",
     "rewardFail": "Belohnung fehlgeschlagen. Bitte versuche es gleich noch einmal.",
+    "rewardFailSoft": "Kommentar gespeichert. BITE-Belohnung konnte nicht synchronisiert werden — später erneut versuchen.",
+    "commentSavedLocalOnly": "Nur auf diesem Gerät gespeichert (Server-Sync fehlgeschlagen oder Beitrag noch nicht auf dem Server).",
     "notifyLike": "{{name}} mag deinen Daily Bite. ❤️",
     "notifyCommentLike": "{{name}} gefällt dein Kommentar. 👍",
     "noInvitationsTitle": "Keine Einladungen gefunden",
@@ -75,7 +77,16 @@
     "notifyReply": "{{name}} hat geantwortet: „{{preview}}“ 💬",
     "notifyReplyPeer": "{{name}} hat auf deinen Kommentar geantwortet. 💬",
     "removeTasteFilter": "Vorlieben-Filter entfernen: {{taste}}",
-    "unknownError": "Ein unbekannter Fehler ist aufgetreten"
+    "unknownError": "Ein unbekannter Fehler ist aufgetreten",
+    "dailyBitePostMenuAria": "Beitragsoptionen",
+    "dailyBiteDeleteConfirmTitle": "Beitrag löschen?",
+    "dailyBiteDeleteConfirmBody": "Wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+    "dailyBiteDeleteConfirm": "Löschen",
+    "dailyBiteEditModalTitle": "Daily Bite bearbeiten",
+    "dailyBiteEditBodyLabel": "Text",
+    "dailyBiteEditCityLabel": "Stadt",
+    "dailyBiteEditBioLabel": "Kurz-Bio",
+    "dailyBiteEmptyBodyError": "Der Text darf nicht leer sein."
   },
   "chat": {
     "today": "Heute",
@@ -168,7 +179,11 @@
     "cropGuide": "Richte dein Gesicht im Kreis aus.",
     "cropCancel": "Abbrechen",
     "cropApply": "Übernehmen",
-    "cropApplying": "Wird angewendet…"
+    "cropApplying": "Wird angewendet…",
+    "saveSuccess": "Profil gespeichert.",
+    "saveSuccessLocal": "Profil auf diesem Gerät gespeichert.",
+    "saveMissingSupabaseToken": "Fehlende Supabase-Sitzung. Lege in Clerk eine JWT-Vorlage „supabase“ an (siehe AUTH_SUPABASE_SETUP.md) und melde dich erneut an.",
+    "saveServerFailed": "Profil konnte nicht mit dem Server synchronisiert werden: {{detail}}"
   },
   "locationPicker": {
     "meetingTitle": "Ort *",

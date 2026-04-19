@@ -9,7 +9,16 @@ import {
 import { I18nextProvider } from "react-i18next";
 import i18n from "./lib/i18n/config";
 import { AppLanguageSync } from "./lib/i18n/AppLanguageSync";
-import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import { motion } from "framer-motion";
 import AppShell from "./AppShell";
 import { SignInPage } from "./app/pages/SignInPage";
@@ -20,7 +29,7 @@ import { TastesOnboardingPage } from "./app/pages/TastesOnboardingPage";
 import { SupabaseUserSync } from "./lib/supabaseUserSync";
 import { BiteEconomySubscriber } from "./lib/BiteEconomySubscriber";
 import { useEffect, useState, type ReactNode } from "react";
-import { getOnboardingCompleted, upsertClerkProfile } from "./lib/profile";
+import { AuthProfileProvider, useAuthProfile } from "./AuthProfileContext";
 import { GOOGLE_OAUTH_STRATEGY, KAKAO_OAUTH_STRATEGY, NAVER_OAUTH_STRATEGY } from "./lib/authStrategies";
 
 /**
@@ -67,26 +76,6 @@ function ClerkProviderWithRouter({ children }: { children: ReactNode }) {
     >
       {children}
     </ClerkProvider>
-  );
-}
-
-function AppShellWithAuthState() {
-  const { isSignedIn, getToken } = useAuth();
-  const { user } = useUser();
-
-  return (
-    <>
-      <SignedIn>
-        <SupabaseUserSync />
-        <BiteEconomySubscriber />
-      </SignedIn>
-      <AppShell
-        isSignedIn={Boolean(isSignedIn)}
-        welcomeClerkUserId={user?.id ?? null}
-        welcomeClerkAccountCreatedAt={user?.createdAt ?? null}
-        getSupabaseToken={async () => getToken({ template: "supabase" })}
-      />
-    </>
   );
 }
 
@@ -195,90 +184,89 @@ function LoadingScreen() {
   );
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let settled = false;
-  return new Promise((resolve, reject) => {
-    const id = window.setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      reject(new Error("timeout"));
-    }, ms);
-    promise.then(
-      (value) => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(id);
-        resolve(value);
-      },
-      (err: unknown) => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(id);
-        reject(err);
-      },
-    );
-  });
-}
-
-function useAuthProfileState() {
-  const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
-  const { user, isLoaded: userLoaded } = useUser();
-  const [isChecking, setIsChecking] = useState(true);
-  const [onboardingDone, setOnboardingDone] = useState(false);
-
-  useEffect(() => {
-    if (!authLoaded || !userLoaded) return;
-    if (!isSignedIn || !user) {
-      setOnboardingDone(false);
-      setIsChecking(false);
-      return;
-    }
-
-    let cancelled = false;
-    setIsChecking(true);
-    (async () => {
-      try {
-        const token = await withTimeout(getToken({ template: "supabase" }), 12_000);
-        if (!token) {
-          if (!cancelled) setOnboardingDone(false);
-          return;
-        }
-        await withTimeout(upsertClerkProfile(user, token), 12_000);
-        const onboarding = await withTimeout(getOnboardingCompleted(user.id, token), 12_000);
-        if (!cancelled) setOnboardingDone(onboarding);
-      } catch {
-        if (!cancelled) setOnboardingDone(false);
-      } finally {
-        if (!cancelled) setIsChecking(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      setIsChecking(false);
-    };
-  }, [authLoaded, getToken, isSignedIn, user, userLoaded]);
-
-  return { authLoaded, isSignedIn, isChecking, onboardingDone };
-}
-
 function RootEntry() {
-  const { authLoaded, isSignedIn, isChecking } = useAuthProfileState();
+  const { authLoaded, isSignedIn, isChecking } = useAuthProfile();
   if (!authLoaded || isChecking) return <LoadingScreen />;
   if (!isSignedIn) return <Navigate to="/app" replace />;
   return <Navigate to="/app" replace />;
 }
 
-function ProtectedAppRoute() {
-  const { authLoaded, isSignedIn, isChecking } = useAuthProfileState();
+/** URL → AppShell initial props for /app, /explore, /daily-bite/:postId (single persistent shell). */
+function useMainAppShellRouteProps() {
+  const { pathname } = useLocation();
+  const { postId } = useParams<{ postId?: string }>();
+
+  if (pathname.startsWith("/daily-bite/")) {
+    return {
+      initialTab: "explore" as const,
+      initialExploreSection: "dailyBites" as const,
+      initialDailyPostId: postId ?? null,
+    };
+  }
+  if (pathname.startsWith("/explore")) {
+    return {
+      initialTab: "explore" as const,
+      initialExploreSection: "invitations" as const,
+      initialDailyPostId: null as string | null,
+    };
+  }
+  if (pathname === "/app") {
+    return {
+      initialTab: "home" as const,
+      initialExploreSection: "invitations" as const,
+      initialDailyPostId: null as string | null,
+    };
+  }
+  return {
+    initialTab: "home" as const,
+    initialExploreSection: "invitations" as const,
+    initialDailyPostId: null as string | null,
+  };
+}
+
+/** Leaf routes under the main app layout — only participate in matching; UI lives in AppShell. */
+function MainAppRouteLeaf() {
+  return null;
+}
+
+/**
+ * One AppShell instance for /app, /explore, /daily-bite/:postId so tab state and heavy screens
+ * are not torn down on SPA navigation.
+ */
+function ProtectedMainAppLayout() {
+  const { authLoaded, isSignedIn, isChecking } = useAuthProfile();
+  const shellProps = useMainAppShellRouteProps();
+
   if (!authLoaded || isChecking) return <LoadingScreen />;
-  if (!isSignedIn) return <AppShell isSignedIn={false} />;
-  return <AppShellWithAuthState />;
+  if (!isSignedIn) {
+    return (
+      <>
+        <AppShell isSignedIn={false} {...shellProps} />
+        <Outlet />
+      </>
+    );
+  }
+  return (
+    <>
+      <AppShellWithAuthStateWithRouteState {...shellProps} />
+      <Outlet />
+    </>
+  );
+}
+
+function PublicMainAppLayout() {
+  const shellProps = useMainAppShellRouteProps();
+  return (
+    <>
+      <AppShell isSignedIn={false} {...shellProps} />
+      <Outlet />
+    </>
+  );
 }
 
 function ProtectedChatRoomRoute() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { authLoaded, isSignedIn, isChecking } = useAuthProfileState();
+  const { authLoaded, isSignedIn, isChecking } = useAuthProfile();
   if (!authLoaded || isChecking) return <LoadingScreen />;
   if (isReloadOnChatDeepLink()) return <Navigate to="/app" replace />;
   if (!isSignedIn) return <AppShell isSignedIn={false} initialChatRoomId={roomId ?? null} />;
@@ -294,6 +282,20 @@ function PublicChatRoomRoute() {
 }
 
 function AppShellWithAuthStateWithInitialChat({ initialChatRoomId }: { initialChatRoomId: string | null }) {
+  return <AppShellWithAuthStateWithRouteState initialChatRoomId={initialChatRoomId} />;
+}
+
+function AppShellWithAuthStateWithRouteState({
+  initialChatRoomId = null,
+  initialTab,
+  initialExploreSection,
+  initialDailyPostId,
+}: {
+  initialChatRoomId?: string | null;
+  initialTab?: "home" | "explore" | "chat" | "profile";
+  initialExploreSection?: "invitations" | "dailyBites";
+  initialDailyPostId?: string | null;
+}) {
   const { isSignedIn, getToken } = useAuth();
   const { user } = useUser();
 
@@ -309,13 +311,16 @@ function AppShellWithAuthStateWithInitialChat({ initialChatRoomId }: { initialCh
         welcomeClerkAccountCreatedAt={user?.createdAt ?? null}
         initialChatRoomId={initialChatRoomId}
         getSupabaseToken={async () => getToken({ template: "supabase" })}
+        initialTab={initialTab}
+        initialExploreSection={initialExploreSection}
+        initialDailyPostId={initialDailyPostId}
       />
     </>
   );
 }
 
 function ProtectedOnboardingRoute() {
-  const { authLoaded, isSignedIn, isChecking, onboardingDone } = useAuthProfileState();
+  const { authLoaded, isSignedIn, isChecking, onboardingDone } = useAuthProfile();
   if (!authLoaded || isChecking) return <LoadingScreen />;
   if (!isSignedIn) return <Navigate to="/" replace />;
   if (onboardingDone) return <Navigate to="/app" replace />;
@@ -358,6 +363,45 @@ function LandingWithSocialLogin() {
   );
 }
 
+function AppRoutes() {
+  const hasClerkKey = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+
+  return (
+    <Routes>
+      {hasClerkKey ? (
+        <>
+          <Route path="/" element={<RootEntry />} />
+          <Route element={<ProtectedMainAppLayout />}>
+            <Route path="/app" element={<MainAppRouteLeaf />} />
+            <Route path="/explore" element={<MainAppRouteLeaf />} />
+            <Route path="/daily-bite/:postId" element={<MainAppRouteLeaf />} />
+          </Route>
+          <Route path="/chat/:roomId" element={<ProtectedChatRoomRoute />} />
+          <Route path="/onboarding/tastes" element={<ProtectedOnboardingRoute />} />
+          <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
+          <Route path="/account-recovery" element={<AccountRecoveryPage />} />
+        </>
+      ) : (
+        <>
+          <Route path="/" element={<LandingPage />} />
+          <Route element={<PublicMainAppLayout />}>
+            <Route path="/app" element={<MainAppRouteLeaf />} />
+            <Route path="/explore" element={<MainAppRouteLeaf />} />
+            <Route path="/daily-bite/:postId" element={<MainAppRouteLeaf />} />
+          </Route>
+          <Route path="/chat/:roomId" element={<PublicChatRoomRoute />} />
+          <Route path="/account-recovery" element={<AccountRecoveryPage />} />
+        </>
+      )}
+
+      <Route path="/sign-in/*" element={<SignInPage />} />
+      <Route path="/sign-up/*" element={<SignUpPage />} />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 export default function App() {
   const hasClerkKey = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -366,30 +410,13 @@ export default function App() {
       <ClerkProviderWithRouter>
         <I18nextProvider i18n={i18n}>
           <AppLanguageSync />
-          <Routes>
           {hasClerkKey ? (
-            <>
-              <Route path="/" element={<RootEntry />} />
-              <Route path="/app" element={<ProtectedAppRoute />} />
-              <Route path="/chat/:roomId" element={<ProtectedChatRoomRoute />} />
-              <Route path="/onboarding/tastes" element={<ProtectedOnboardingRoute />} />
-              <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
-              <Route path="/account-recovery" element={<AccountRecoveryPage />} />
-            </>
+            <AuthProfileProvider>
+              <AppRoutes />
+            </AuthProfileProvider>
           ) : (
-            <>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/app" element={<AppShell isSignedIn={false} />} />
-              <Route path="/chat/:roomId" element={<PublicChatRoomRoute />} />
-              <Route path="/account-recovery" element={<AccountRecoveryPage />} />
-            </>
+            <AppRoutes />
           )}
-
-          <Route path="/sign-in/*" element={<SignInPage />} />
-          <Route path="/sign-up/*" element={<SignUpPage />} />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
         </I18nextProvider>
       </ClerkProviderWithRouter>
     </BrowserRouter>
