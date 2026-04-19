@@ -22,8 +22,20 @@
     "tourPriceFiat": "Tourpreis (Fiat)",
     "maxGuests": "Max. Gäste",
     "meetupDateTime": "Datum & Uhrzeit",
+    "meetupTbd": "Datum & Uhrzeit noch offen",
+    "meetupTbdHint": "Du kannst später festlegen. Gäste sehen „wird noch bekannt gegeben“.",
+    "meetupTbdBadge": "Wird bekannt gegeben",
+    "meetupRequiredWhenNotTbd": "Bitte Datum und Uhrzeit wählen oder „noch offen“ aktivieren.",
     "priceCurrency": "Währung",
-    "journeyTimeline": "Reiseverlauf"
+    "journeyTimeline": "Reiseverlauf",
+    "timelineTimePh": "Uhrzeit (z. B. 14:00)",
+    "timelineTitlePh": "Aktivitätstitel",
+    "timelineDescriptionPh": "Aktivitätsbeschreibung",
+    "timelineDelete": "🗑 Löschen",
+    "timelineDeleteAria": "Diese Zeile löschen",
+    "timelineAddRow": "Zeile hinzufügen",
+    "timelineErrorEmpty": "Mindestens eine Zeile im Reiseverlauf hinzufügen.",
+    "timelineErrorRow": "Bitte in jeder Zeile Uhrzeit, Titel und Beschreibung ausfüllen."
   },
   "fab": {
     "createAria": "Erstellen"

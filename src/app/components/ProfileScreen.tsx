@@ -21,7 +21,6 @@ import {
   getLocalInvites,
   subscribeLocalInvitesSync,
   updateLocalInvite,
-  type LocalInviteItineraryItem,
   type LocalInvite,
 } from "@/lib/localInvites";
 import { updateInvite } from "@/lib/invites";
@@ -32,6 +31,12 @@ import {
   InvitePriceCapacityMeetupFields,
   meetupForDatetimeInput,
 } from "@/app/components/InvitePriceCapacityMeetupFields";
+import {
+  InviteJourneyTimelineEditor,
+  inviteTimelineRowsFromItinerary,
+  itineraryFromTimelineRows,
+  type InviteTimelineRow,
+} from "@/app/components/InviteJourneyTimelineEditor";
 import i18n from "@/lib/i18n/config";
 import { getCountryNameEn } from "@/lib/locations/dataset";
 import { formatProfileLocationDisplay } from "@/lib/locations/profileDisplay";
@@ -77,9 +82,11 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   const [editingPriceAmount, setEditingPriceAmount] = useState(45000);
   const [editingCapacity, setEditingCapacity] = useState(2);
   const [editingMeetupAt, setEditingMeetupAt] = useState("");
+  const [editingMeetupTbd, setEditingMeetupTbd] = useState(false);
   const [editingHostCurrency, setEditingHostCurrency] = useState<CurrencyCode>("KRW");
   const [editingTasteTags, setEditingTasteTags] = useState<string[]>([]);
-  const [editingTimeline, setEditingTimeline] = useState<LocalInviteItineraryItem[]>([]);
+  const [editingTimeline, setEditingTimeline] = useState<InviteTimelineRow[]>([]);
+  const [editingTimelineError, setEditingTimelineError] = useState("");
   const [editingInviteSaving, setEditingInviteSaving] = useState(false);
   const lastMergedServerProfileUserIdRef = useRef<string | null>(null);
   const [profileSyncTick, setProfileSyncTick] = useState(0);
@@ -482,13 +489,32 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
     setEditingPriceAmount(invite.priceAmount ?? 45000);
     setEditingCapacity(invite.capacity ?? 2);
     setEditingMeetupAt(meetupForDatetimeInput(invite.meetupAt ?? ""));
+    setEditingMeetupTbd(!String(invite.meetupAt ?? "").trim());
     setEditingHostCurrency(invite.hostCurrency ?? preferredCurrency);
     setEditingTasteTags(invite.tasteTags ?? []);
-    setEditingTimeline(invite.itinerary ?? []);
+    setEditingTimeline(inviteTimelineRowsFromItinerary(invite.itinerary));
+    setEditingTimelineError("");
   };
 
   const saveEditedInvite = async () => {
     if (!editingInviteId) return;
+    setEditingTimelineError("");
+    if (!editingTimeline.length) {
+      setEditingTimelineError(t("inviteFields.timelineErrorEmpty"));
+      return;
+    }
+    const invalidRow = editingTimeline.find(
+      (item) => !item.time.trim() || !item.title.trim() || !item.description.trim(),
+    );
+    if (invalidRow) {
+      setEditingTimelineError(t("inviteFields.timelineErrorRow"));
+      return;
+    }
+    if (!editingMeetupTbd && !editingMeetupAt.trim()) {
+      toast.error(t("inviteFields.meetupRequiredWhenNotTbd"));
+      return;
+    }
+    const itinerary = itineraryFromTimelineRows(editingTimeline);
     const [cityRaw = editingLocation] = editingLocation.split(",");
     const patch: Partial<LocalInvite> = {
       title: editingTitle.trim() || t("profile.untitledBite"),
@@ -497,12 +523,10 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
       description: editingDescription.trim(),
       priceAmount: Math.max(0, editingPriceAmount || 0),
       capacity: Math.max(1, editingCapacity || 1),
-      meetupAt: editingMeetupAt,
+      meetupAt: editingMeetupTbd ? "" : editingMeetupAt,
       hostCurrency: editingHostCurrency,
       tasteTags: editingTasteTags.length ? editingTasteTags : ["Cafe Hopping"],
-      itinerary: editingTimeline.length
-        ? editingTimeline
-        : [{ time: "", title: "", description: "" }],
+      itinerary: itinerary.length ? itinerary : [{ time: "", title: "", description: "" }],
     };
     updateLocalInvite(editingInviteId, patch);
     setEditingInviteSaving(true);
@@ -518,9 +542,9 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               inviteeHistory.find((x) => x.id === editingInviteId)?.primaryPhotoUrl ?? "",
             description: String(patch.description),
             itinerary: (patch.itinerary ?? []).map((item) => ({
-              time: item.time,
-              title: item.title,
-              description: item.description,
+              time: String(item.time),
+              title: String(item.title),
+              description: String(item.description),
             })),
             tasteTags: patch.tasteTags ?? [],
             includedOptions:
@@ -951,6 +975,15 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               onChange={(e) => setEditingDescription(e.target.value)}
               placeholder={t("profile.descriptionPh")}
             />
+            <InviteJourneyTimelineEditor
+              titleClassName="mt-4"
+              rows={editingTimeline}
+              onChange={(next) => {
+                setEditingTimeline(next);
+                setEditingTimelineError("");
+              }}
+              errorText={editingTimelineError || undefined}
+            />
             <InvitePriceCapacityMeetupFields
               className="mt-4"
               hostCurrency={editingHostCurrency}
@@ -961,6 +994,8 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               onCapacityChange={setEditingCapacity}
               meetupAt={editingMeetupAt}
               onMeetupAtChange={setEditingMeetupAt}
+              meetupTbd={editingMeetupTbd}
+              onMeetupTbdChange={setEditingMeetupTbd}
             />
             <div className="mt-4 flex flex-wrap gap-2">
               {TASTE_TAG_OPTIONS.map((tag) => {
@@ -985,54 +1020,6 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
                   </button>
                 );
               })}
-            </div>
-            <div className="mt-4 rounded-2xl border border-[#EDD5C0] bg-white/70 p-3">
-              <div className="text-[13px] font-semibold text-[#A0522D]">{t("inviteFields.journeyTimeline")}</div>
-              <div className="mt-3 space-y-2">
-                {editingTimeline.map((row, idx) => (
-                  <div key={`${idx}-${row.title}`} className="grid grid-cols-3 gap-2">
-                    <input
-                      value={row.time}
-                      onChange={(e) =>
-                        setEditingTimeline((cur) =>
-                          cur.map((it, i) => (i === idx ? { ...it, time: e.target.value } : it)),
-                        )
-                      }
-                      className="rounded-xl border border-[#EDD5C0] bg-white px-3 py-2 text-[13px] outline-none"
-                      placeholder="Time"
-                    />
-                    <input
-                      value={row.title}
-                      onChange={(e) =>
-                        setEditingTimeline((cur) =>
-                          cur.map((it, i) => (i === idx ? { ...it, title: e.target.value } : it)),
-                        )
-                      }
-                      className="rounded-xl border border-[#EDD5C0] bg-white px-3 py-2 text-[13px] outline-none"
-                      placeholder="Title"
-                    />
-                    <input
-                      value={row.description}
-                      onChange={(e) =>
-                        setEditingTimeline((cur) =>
-                          cur.map((it, i) => (i === idx ? { ...it, description: e.target.value } : it)),
-                        )
-                      }
-                      className="rounded-xl border border-[#EDD5C0] bg-white px-3 py-2 text-[13px] outline-none"
-                      placeholder="Description"
-                    />
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditingTimeline((cur) => [...cur, { time: "", title: "", description: "" }])
-                  }
-                  className="rounded-full border border-[#EDD5C0] bg-white px-3 py-1 text-[12px] font-semibold text-[#A0522D]"
-                >
-                  + Add Row
-                </button>
-              </div>
             </div>
             <div className="mt-5 flex gap-3">
               <button

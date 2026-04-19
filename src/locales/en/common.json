@@ -22,8 +22,20 @@
     "tourPriceFiat": "Tour price (fiat)",
     "maxGuests": "Max guests",
     "meetupDateTime": "Meet-up date & time",
+    "meetupTbd": "Date & time undecided (TBD)",
+    "meetupTbdHint": "You can set a specific date later. Guests will see this as “to be announced”.",
+    "meetupTbdBadge": "To be announced",
+    "meetupRequiredWhenNotTbd": "Pick a meet-up date and time, or check “Date & time undecided”.",
     "priceCurrency": "Price currency",
-    "journeyTimeline": "Journey timeline"
+    "journeyTimeline": "Journey timeline",
+    "timelineTimePh": "Time (e.g., 14:00)",
+    "timelineTitlePh": "Activity title",
+    "timelineDescriptionPh": "Activity description",
+    "timelineDelete": "🗑 Delete",
+    "timelineDeleteAria": "Delete this timeline row",
+    "timelineAddRow": "Add timeline row",
+    "timelineErrorEmpty": "Add at least one timeline activity.",
+    "timelineErrorRow": "Fill Time, Activity title, and Activity description for each row."
   },
   "fab": {
     "createAria": "Create"

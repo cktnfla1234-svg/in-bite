@@ -22,8 +22,20 @@
     "tourPriceFiat": "투어 금액 (현지 통화)",
     "maxGuests": "최대 인원",
     "meetupDateTime": "만남 날짜·시간",
+    "meetupTbd": "날짜·시간 미정 (추후 공지)",
+    "meetupTbdHint": "나중에 확정해도 됩니다. 게스트에게는 ‘추후 공지’로 보입니다.",
+    "meetupTbdBadge": "추후 공지",
+    "meetupRequiredWhenNotTbd": "만남 날짜·시간을 선택하거나 ‘미정’을 체크해 주세요.",
     "priceCurrency": "통화",
-    "journeyTimeline": "여정 타임라인"
+    "journeyTimeline": "여정 타임라인",
+    "timelineTimePh": "시간 (예: 14:00)",
+    "timelineTitlePh": "활동 제목",
+    "timelineDescriptionPh": "활동 설명",
+    "timelineDelete": "🗑 삭제",
+    "timelineDeleteAria": "이 타임라인 줄 삭제",
+    "timelineAddRow": "줄 추가",
+    "timelineErrorEmpty": "타임라인 활동을 최소 한 줄 추가해 주세요.",
+    "timelineErrorRow": "각 줄에 시간·활동 제목·활동 설명을 모두 입력해 주세요."
   },
   "fab": {
     "createAria": "만들기"

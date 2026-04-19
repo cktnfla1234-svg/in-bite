@@ -26,6 +26,9 @@ export type InvitePriceCapacityMeetupFieldsProps = {
   onCapacityChange: (n: number) => void;
   meetupAt: string;
   onMeetupAtChange: (v: string) => void;
+  /** When true, meet-up is "to be decided" and the datetime control is disabled. */
+  meetupTbd: boolean;
+  onMeetupTbdChange: (v: boolean) => void;
   /** Extra classes on the outer stack wrapper (e.g. spacing). */
   className?: string;
 };
@@ -54,6 +57,8 @@ export function InvitePriceCapacityMeetupFields({
   onCapacityChange,
   meetupAt,
   onMeetupAtChange,
+  meetupTbd,
+  onMeetupTbdChange,
   className = "",
 }: InvitePriceCapacityMeetupFieldsProps) {
   const { t } = useTranslation("common");
@@ -163,13 +168,37 @@ export function InvitePriceCapacityMeetupFields({
 
       <div className="rounded-[22px] bg-white/70 p-4 shadow-[0_18px_55px_rgba(0,0,0,0.06)]">
         <div className="text-[12px] font-semibold text-[#A0522D]/70">{t("inviteFields.meetupDateTime")}</div>
-        <div className="mt-3 rounded-xl border border-[#EDD5C0] bg-white px-3 py-3">
+        <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-[#EDD5C0] bg-white px-3 py-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#A0522D]"
+            checked={meetupTbd}
+            onChange={(e) => {
+              const next = e.target.checked;
+              onMeetupTbdChange(next);
+              if (next) onMeetupAtChange("");
+            }}
+          />
+          <span>
+            <span className="block text-[13px] font-semibold text-[#2C1A0E]">{t("inviteFields.meetupTbd")}</span>
+            <span className="mt-0.5 block text-[11px] leading-relaxed text-[#A0522D]/65">{t("inviteFields.meetupTbdHint")}</span>
+          </span>
+        </label>
+        <div
+          className={`mt-3 rounded-xl border border-[#EDD5C0] bg-white px-3 py-3 ${
+            meetupTbd ? "bg-[#FDFAF5]/90 opacity-80" : ""
+          }`}
+        >
           <input
             type="datetime-local"
-            className="w-full bg-transparent text-[14px] text-[#2C1A0E] outline-none"
-            value={meetupAt}
+            disabled={meetupTbd}
+            className="w-full bg-transparent text-[14px] text-[#2C1A0E] outline-none disabled:cursor-not-allowed"
+            value={meetupTbd ? "" : meetupAt}
             onChange={(e) => onMeetupAtChange(e.target.value)}
           />
+          {meetupTbd ? (
+            <div className="mt-1 text-[12px] font-medium text-[#A0522D]/60">{t("inviteFields.meetupTbdBadge")}</div>
+          ) : null}
         </div>
       </div>
     </div>

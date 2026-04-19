@@ -13,6 +13,12 @@ import { CountryCitySelect } from "@/app/components/CountryCitySelect";
 import { buildStoredLocationEnglish } from "@/lib/locations/dataset";
 import { normalizeAppLocale } from "@/lib/i18n/appLocales";
 import { InvitePriceCapacityMeetupFields } from "@/app/components/InvitePriceCapacityMeetupFields";
+import {
+  InviteJourneyTimelineEditor,
+  emptyInviteTimelineRow,
+  itineraryFromTimelineRows,
+  type InviteTimelineRow,
+} from "@/app/components/InviteJourneyTimelineEditor";
 
 type CreateTourScreenProps = {
   onClose: () => void;
@@ -39,20 +45,6 @@ const TASTE_TAG_OPTIONS = [
   "Live Music",
 ];
 
-type TimelineItem = {
-  id: string;
-  time: string;
-  title: string;
-  description: string;
-};
-
-const emptyTimelineItem = (): TimelineItem => ({
-  id: crypto.randomUUID(),
-  time: "",
-  title: "",
-  description: "",
-});
-
 export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   const { t, i18n } = useTranslation("common");
   const uiLocale = normalizeAppLocale(i18n.language);
@@ -66,6 +58,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   const [hostCurrency, setHostCurrency] = useState<CurrencyCode>("KRW");
   const [capacity, setCapacity] = useState(2);
   const [meetupAt, setMeetupAt] = useState("");
+  const [meetupTbd, setMeetupTbd] = useState(false);
   const [biteBalance, setBiteBalance] = useState(0);
   const [title, setTitle] = useState("");
   const [countryCode, setCountryCode] = useState("KR");
@@ -76,7 +69,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   const [customTaste, setCustomTaste] = useState("");
   const [customTasteTags, setCustomTasteTags] = useState<string[]>([]);
   const [primaryPhoto, setPrimaryPhoto] = useState("");
-  const [timeline, setTimeline] = useState<TimelineItem[]>([emptyTimelineItem()]);
+  const [timeline, setTimeline] = useState<InviteTimelineRow[]>([emptyInviteTimelineRow()]);
   const [step, setStep] = useState<1 | 2>(1);
   const [basicError, setBasicError] = useState("");
   const [timelineError, setTimelineError] = useState("");
@@ -127,31 +120,16 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     setPrimaryPhoto(dataUrl);
   };
 
-  const addTimelineItem = () => {
-    setTimeline((prev) => [...prev, emptyTimelineItem()]);
-  };
-
-  const removeTimelineItem = (id: string) => {
-    setTimeline((prev) => {
-      if (prev.length === 1) return prev;
-      return prev.filter((item) => item.id !== id);
-    });
-  };
-
-  const updateTimelineItem = (id: string, key: "time" | "title" | "description", value: string) => {
-    setTimeline((prev) => prev.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
-  };
-
   const validateTimeline = () => {
     if (!timeline.length) {
-      setTimelineError("Add at least one timeline activity.");
+      setTimelineError(t("inviteFields.timelineErrorEmpty"));
       return false;
     }
     const invalid = timeline.find(
       (item) => !item.time.trim() || !item.title.trim() || !item.description.trim(),
     );
     if (invalid) {
-      setTimelineError("Please fill Time, Activity Title, and Activity Description for each row.");
+      setTimelineError(t("inviteFields.timelineErrorRow"));
       return false;
     }
     setTimelineError("");
@@ -173,7 +151,12 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       setBasicError("Please complete title, location, primary photo, and description first.");
       return;
     }
+    setSaveError("");
     if (!validateTimeline()) return;
+    if (!meetupTbd && !meetupAt.trim()) {
+      setSaveError(t("inviteFields.meetupRequiredWhenNotTbd"));
+      return;
+    }
 
     if (user?.id) {
       const bal = getWalletBalance(user.id);
@@ -188,11 +171,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     const main = baseLocation.trim();
     const finalLocation = locationDetail.trim() ? `${main} · ${locationDetail.trim()}` : main;
     const city = cityEn.trim();
-    const itinerary = timeline.map((item) => ({
-      time: item.time.trim(),
-      title: item.title.trim(),
-      description: item.description.trim(),
-    }));
+    const itinerary = itineraryFromTimelineRows(timeline);
     const finalTasteTags = tasteTags.length ? tasteTags : ["Cafe Hopping"];
     const includedOptions = Object.entries(included)
       .filter(([, active]) => active)
@@ -241,7 +220,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       priceAmount: Math.max(0, priceAmount),
       hostCurrency,
       capacity,
-      meetupAt,
+      meetupAt: meetupTbd ? "" : meetupAt,
       createdAt: new Date().toISOString(),
       hostClerkId: user?.id,
       hostDisplayName: hostDisplay,
@@ -455,57 +434,12 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
           </>
         ) : (
           <>
-            <div className="mt-6 text-[12px] font-semibold text-[#A0522D]/70">Journey Timeline</div>
-            <div className="mt-3 rounded-2xl border border-[#EDD5C0] bg-white/60 p-4">
-              <div className="relative space-y-4 pl-3">
-                <div className="pointer-events-none absolute bottom-3 left-[14px] top-3 w-[2px] bg-[#A0522D]/25" />
-                {timeline.map((item, index) => (
-                  <div key={item.id} className="relative">
-                    <div className="absolute left-0 top-6 h-7 w-7 rounded-full bg-[#A0522D] text-center text-[10px] font-semibold leading-7 text-white">
-                      {item.time || `${index + 1}`}
-                    </div>
-                    <div className="ml-10 rounded-2xl border border-[#EDD5C0] bg-[#FDFAF5] p-3">
-                      <input
-                        className="w-full rounded-xl border border-[#EDD5C0] bg-white/70 px-3 py-2 text-[13px] outline-none"
-                        placeholder="Time (e.g., 14:00)"
-                        value={item.time}
-                        onChange={(e) => updateTimelineItem(item.id, "time", e.target.value)}
-                      />
-                      <input
-                        className="mt-2 w-full rounded-xl border border-[#EDD5C0] bg-white/70 px-3 py-2 text-[13px] outline-none"
-                        placeholder="Activity Title"
-                        value={item.title}
-                        onChange={(e) => updateTimelineItem(item.id, "title", e.target.value)}
-                      />
-                      <textarea
-                        className="mt-2 min-h-[78px] w-full resize-none rounded-xl border border-[#EDD5C0] bg-white/70 px-3 py-2 text-[13px] outline-none"
-                        placeholder="Activity Description"
-                        value={item.description}
-                        onChange={(e) => updateTimelineItem(item.id, "description", e.target.value)}
-                      />
-                      <div className="mt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => removeTimelineItem(item.id)}
-                          className="rounded-full border border-[#EDD5C0] px-3 py-1 text-[12px] font-semibold text-[#A0522D]"
-                          aria-label="Delete timeline row"
-                        >
-                          🗑 Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={addTimelineItem}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#A0522D]/35 bg-[#A0522D]/10 px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
-              >
-                <span className="text-[16px] leading-none">+</span> Add Timeline Row
-              </button>
-            </div>
-            {timelineError ? <p className="mt-3 text-[12px] font-semibold text-red-600">{timelineError}</p> : null}
+            <InviteJourneyTimelineEditor
+              rows={timeline}
+              onChange={setTimeline}
+              errorText={timelineError || undefined}
+              titleClassName="mt-6"
+            />
           </>
         )}
 
@@ -519,6 +453,8 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
             onCapacityChange={setCapacity}
             meetupAt={meetupAt}
             onMeetupAtChange={setMeetupAt}
+            meetupTbd={meetupTbd}
+            onMeetupTbdChange={setMeetupTbd}
           />
         ) : null}
 
