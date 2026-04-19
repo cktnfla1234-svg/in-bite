@@ -198,7 +198,16 @@
     "inviteAcceptedLabel": "수락함",
     "systemInviteAccepted": "동행 초대를 수락했어요. 이제 함께 일정을 잡아 보세요!",
     "groupNotice": "호스트와 게스트 그룹 채팅 ({{count}}명)",
-    "companionInviteLine": "{{name}}님이 당신을 동행에 초대했습니다! [수락하기]"
+    "companionInviteLine": "{{name}}님이 당신을 동행에 초대했습니다! [수락하기]",
+    "groupChatTitle": "동행 채팅",
+    "menuStartGroupTrip": "그룹 동행 채팅 열기 (링크 공유)",
+    "menuCopyGroupInviteLink": "그룹 채팅방 링크 복사",
+    "menuCopyChatLink": "채팅방 링크 복사",
+    "inviteLinkCopied": "링크를 복사했어요. 링크를 받은 사람이 같은 채팅방에 들어올 수 있어요.",
+    "inviteLinkCopyFailed": "복사에 실패했어요. 주소창의 주소를 직접 복사해 주세요.",
+    "groupTripCreateError": "이 대화에서 그룹 채팅을 열 수 없어요.",
+    "groupTripOpenedSystem": "그룹 동행 채팅이 열렸어요. ⋮ 메뉴 → 그룹 채팅방 링크 복사로 더 많은 사람을 초대할 수 있어요.",
+    "groupTripOpenedToast": "그룹 동행 채팅이 준비됐어요. 메뉴에서 링크를 공유해 주세요."
   },
   "profile": {
     "title": "내 프로필",

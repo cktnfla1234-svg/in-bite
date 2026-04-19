@@ -198,7 +198,16 @@
     "inviteAcceptedLabel": "Accepted",
     "systemInviteAccepted": "Companion invitation accepted. You're now planning together!",
     "groupNotice": "Group chat with host and guests ({{count}} people)",
-    "companionInviteLine": "{{name}} invited you to join as a companion!"
+    "companionInviteLine": "{{name}} invited you to join as a companion!",
+    "groupChatTitle": "Trip chat",
+    "menuStartGroupTrip": "Start group trip chat (share link)",
+    "menuCopyGroupInviteLink": "Copy group chat link",
+    "menuCopyChatLink": "Copy chat room link",
+    "inviteLinkCopied": "Link copied. Send it so others can open this chat.",
+    "inviteLinkCopyFailed": "Could not copy. Copy the address from the browser bar.",
+    "groupTripCreateError": "Could not start a group chat from this conversation.",
+    "groupTripOpenedSystem": "A group trip chat was opened. Use the ⋮ menu → Copy group chat link to invite more people.",
+    "groupTripOpenedToast": "Group trip chat is ready. Share the link from the menu."
   },
   "profile": {
     "title": "My Profile",

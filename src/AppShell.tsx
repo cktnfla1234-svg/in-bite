@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/clerk-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, Toaster } from "sonner";
@@ -19,7 +20,7 @@ import { PostSignupWelcomeModal } from "@/app/components/PostSignupWelcomeModal"
 import { grantWelcomeReward, hasWelcomeRewardBeenGranted } from "@/lib/wallet";
 import { PreferredCurrencyProvider } from "@/lib/PreferredCurrencyContext";
 import { UserProfilePreviewProvider } from "@/app/context/UserProfilePreviewContext";
-import { removeSyntheticChatRooms, startSayHiChat } from "@/lib/chat";
+import { createGroupChatRoom, removeSyntheticChatRooms, startSayHiChat, syncGroupChatRoomToSupabase } from "@/lib/chat";
 import type { Experience } from "@/data/experiences";
 import { ActivitySheet } from "@/app/components/ActivitySheet";
 import type { AppNotification } from "@/lib/notifications";
@@ -112,7 +113,6 @@ export default function AppShell({
   const [postSignupOpen, setPostSignupOpen] = useState(false);
   const [rewardAnim, setRewardAnim] = useState(false);
   const [showHomeQuickAction, setShowHomeQuickAction] = useState(false);
-  const [groupChatInviteNonce, setGroupChatInviteNonce] = useState(0);
   const [chatLaunch, setChatLaunch] = useState<ChatLaunchRequest | null>(null);
   const [isConnectingChat, setIsConnectingChat] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
@@ -123,6 +123,7 @@ export default function AppShell({
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation("common");
+  const { user } = useUser();
   const tabScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -481,11 +482,26 @@ export default function AppShell({
               onSayHi={(experience: Experience) => void openSayHiChat(`host:${experience.id}`, experience.hostName)}
               onSayHiHost={({ hostId, hostName }) => void openSayHiChat(hostId, hostName)}
               onInviteCompanion={() => {
-                setGroupChatInviteNonce((n) => n + 1);
+                if (!requireAuth("chat")) return;
+                const uid = welcomeClerkUserId;
+                if (!uid) return;
+                const title =
+                  user?.fullName?.trim() ||
+                  [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+                  user?.username?.trim() ||
+                  t("chat.groupChatTitle");
+                const roomId = createGroupChatRoom(uid, title);
+                void (async () => {
+                  try {
+                    const token = getSupabaseToken ? await getSupabaseToken() : null;
+                    if (token) await syncGroupChatRoomToSupabase(roomId, [uid], token);
+                  } catch {
+                    /* ignore */
+                  }
+                })();
+                setChatLaunch({ chatId: roomId, nonce: Date.now() });
                 setActiveTab("chat");
-                if (!location.pathname.startsWith("/chat/") && location.pathname !== "/messages") {
-                  navigate("/messages");
-                }
+                navigate(`/chat/${encodeURIComponent(roomId)}`);
               }}
               onOpenCreateDailyInbite={() => setCreateDailyInbiteOpen(true)}
               activityHasUnread={activityUnread}
@@ -498,7 +514,6 @@ export default function AppShell({
           </div>
           <div className={tabPanelClass("chat")}>
             <ChatScreen
-              openGroupChatNonce={groupChatInviteNonce}
               chatLaunch={chatLaunch}
               onChatLaunchConsumed={handleChatLaunchConsumed}
               myUserId={welcomeClerkUserId ?? "guest"}

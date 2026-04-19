@@ -198,7 +198,16 @@
     "inviteAcceptedLabel": "Angenommen",
     "systemInviteAccepted": "Begleit-Einladung angenommen. Ihr könnt jetzt gemeinsam planen!",
     "groupNotice": "Gruppenchat mit Host und Gästen ({{count}} Personen)",
-    "companionInviteLine": "{{name}} lädt dich ein, als Begleitung mitzumachen! [Annehmen]"
+    "companionInviteLine": "{{name}} lädt dich ein, als Begleitung mitzumachen! [Annehmen]",
+    "groupChatTitle": "Reise-Chat",
+    "menuStartGroupTrip": "Gruppen-Reisechat starten (Link teilen)",
+    "menuCopyGroupInviteLink": "Gruppen-Chat-Link kopieren",
+    "menuCopyChatLink": "Chatraum-Link kopieren",
+    "inviteLinkCopied": "Link kopiert. Schicke ihn, damit andere diesen Chat öffnen können.",
+    "inviteLinkCopyFailed": "Kopieren fehlgeschlagen. Kopiere die Adresse aus der Browserleiste.",
+    "groupTripCreateError": "Aus diesem Gespräch konnte kein Gruppenchat gestartet werden.",
+    "groupTripOpenedSystem": "Ein Gruppen-Reisechat wurde geöffnet. Über ⋮ → Gruppen-Chat-Link kopieren kannst du weitere Personen einladen.",
+    "groupTripOpenedToast": "Gruppen-Reisechat ist bereit. Teile den Link über das Menü."
   },
   "profile": {
     "title": "Mein Profil",

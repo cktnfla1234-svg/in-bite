@@ -234,3 +234,151 @@ export function removeSyntheticChatRooms() {
   saveMessages(keptMessages);
 }
 
+export function isGroupRoomId(roomId: string) {
+  return roomId.trim().startsWith("group:");
+}
+
+/** Parses `direct:userA__userB` into sorted pair (order matches storage). */
+export function parseDirectRoomPeers(roomId: string): [string, string] | null {
+  if (!roomId.startsWith("direct:")) return null;
+  const rest = roomId.slice("direct:".length);
+  const parts = rest.split("__");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  return [parts[0], parts[1]];
+}
+
+export function createGroupChatRoom(hostClerkId: string, title: string): string {
+  const roomId = `group:${crypto.randomUUID()}`;
+  const iso = nowIso();
+  upsertRoom({
+    id: roomId,
+    title: title.trim() || "Group chat",
+    type: "group",
+    participantIds: [hostClerkId],
+    createdAt: iso,
+    lastMessage: "",
+    lastMessageAt: iso,
+  });
+  return roomId;
+}
+
+export function createGroupChatWithMembers(participantIds: string[], title: string): string {
+  const unique = [...new Set(participantIds.filter(Boolean))];
+  const roomId = `group:${crypto.randomUUID()}`;
+  const iso = nowIso();
+  upsertRoom({
+    id: roomId,
+    title: title.trim() || "Group chat",
+    type: "group",
+    participantIds: unique.length ? unique : ["guest"],
+    createdAt: iso,
+    lastMessage: "",
+    lastMessageAt: iso,
+  });
+  return roomId;
+}
+
+export function mergeParticipantsIntoLocalGroupRoom(roomId: string, participantIds: string[]) {
+  if (!isGroupRoomId(roomId)) return;
+  const rooms = readJson<ChatRoomRecord[]>(ROOMS_KEY, []);
+  const idx = rooms.findIndex((r) => r.id === roomId);
+  const merged = [...new Set(participantIds.filter(Boolean))];
+  if (idx < 0) {
+    const iso = nowIso();
+    upsertRoom({
+      id: roomId,
+      title: "Group chat",
+      type: "group",
+      participantIds: merged,
+      createdAt: iso,
+      lastMessage: "",
+      lastMessageAt: iso,
+    });
+    return;
+  }
+  const prev = rooms[idx]!;
+  if (prev.type !== "group") return;
+  const nextIds = [...new Set([...prev.participantIds, ...merged])];
+  rooms[idx] = { ...prev, participantIds: nextIds };
+  saveRooms(rooms);
+}
+
+export async function syncGroupChatRoomToSupabase(roomId: string, participantIds: string[], accessToken: string) {
+  if (!isGroupRoomId(roomId)) return;
+  const supabase = getSupabaseClient(accessToken);
+  if (!supabase) return;
+  const iso = nowIso();
+  const { error: roomErr } = await supabase.from("chat_rooms").upsert(
+    {
+      id: roomId,
+      created_at: iso,
+      updated_at: iso,
+      participant_clerk_ids: participantIds,
+    },
+    { onConflict: "id" },
+  );
+  if (roomErr) {
+    const { error: legacyErr } = await supabase.from("chat_rooms").upsert(
+      { id: roomId, created_at: iso, updated_at: iso },
+      { onConflict: "id" },
+    );
+    if (legacyErr) console.warn("[chat] group chat_rooms upsert", roomErr, legacyErr);
+  }
+}
+
+export async function joinGroupChatRoomRemote(
+  roomId: string,
+  accessToken: string,
+): Promise<string[] | null> {
+  if (!isGroupRoomId(roomId)) return null;
+  const supabase = getSupabaseClient(accessToken);
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("join_group_chat_room", { p_room_id: roomId });
+  if (error) {
+    console.warn("[chat] join_group_chat_room", error);
+    return null;
+  }
+  if (data == null || typeof data !== "object") return null;
+  const raw = (data as Record<string, unknown>).participant_clerk_ids;
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
+}
+
+export async function fetchGroupChatParticipantsRemote(
+  roomId: string,
+  accessToken: string,
+): Promise<string[] | null> {
+  if (!isGroupRoomId(roomId)) return null;
+  const supabase = getSupabaseClient(accessToken);
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("chat_rooms")
+    .select("participant_clerk_ids")
+    .eq("id", roomId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const raw = (data as { participant_clerk_ids?: unknown }).participant_clerk_ids;
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
+}
+
+export async function syncChatMessageToSupabase(args: {
+  roomId: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  accessToken: string;
+}) {
+  const supabase = getSupabaseClient(args.accessToken);
+  if (!supabase) return;
+  const iso = nowIso();
+  const { error: msgErr } = await supabase.from("messages").insert({
+    room_id: args.roomId,
+    sender_id: args.senderId,
+    receiver_id: args.receiverId,
+    content: args.content,
+    created_at: iso,
+  });
+  if (msgErr) console.warn("[chat] messages insert", msgErr);
+}
+

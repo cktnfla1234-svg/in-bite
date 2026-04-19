@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { CreditCard, Gift, Handshake, Send } from "lucide-react";
+import { CreditCard, Gift, Handshake, Link2, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChatMessageRecord } from "@/lib/chat";
@@ -22,6 +22,10 @@ type ChatRoomScreenProps = {
   ) => void;
   participants?: string[];
   onInviteCompanion?: (options?: { note?: string }) => void;
+  /** Copy `/chat/:id` link (group trip or current room). */
+  onCopyChatInviteLink?: () => void | Promise<void>;
+  /** From a 1:1 room, create a group room with the same two people and go there (then share link). */
+  onStartGroupTripChat?: () => void | Promise<void>;
   onCreatePaymentIntent?: (input: { amount: number; currency: CurrencyCode }) => Promise<{ clientSecret: string }>;
   onBack: () => void;
   /** Direct chat: the other participant’s Clerk id (for profile preview). */
@@ -48,6 +52,8 @@ export function ChatRoomScreen({
   onSendActionMessage,
   participants = [],
   onInviteCompanion,
+  onCopyChatInviteLink,
+  onStartGroupTripChat,
   onCreatePaymentIntent,
   onBack,
   directPeerClerkId,
@@ -294,7 +300,7 @@ export function ChatRoomScreen({
         {menuOpen ? (
           <motion.div
             key="action-menu"
-            className="fixed inset-0 z-[65]"
+            className="fixed inset-0 z-[96]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -353,6 +359,32 @@ export function ChatRoomScreen({
                 <Handshake className="h-5 w-5 shrink-0 text-[#A0522D]" aria-hidden />
                 {t("chat.menuInvite")}
               </button>
+              {type === "direct" && onStartGroupTripChat ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void onStartGroupTripChat();
+                  }}
+                  className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-[#E9D6C6] bg-white px-4 py-3 text-left text-[14px] font-semibold text-[#7A4B2F]"
+                >
+                  <Link2 className="h-5 w-5 shrink-0 text-[#A0522D]" aria-hidden />
+                  {t("chat.menuStartGroupTrip")}
+                </button>
+              ) : null}
+              {onCopyChatInviteLink ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void onCopyChatInviteLink();
+                  }}
+                  className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-[#E9D6C6] bg-white px-4 py-3 text-left text-[14px] font-semibold text-[#7A4B2F]"
+                >
+                  <Link2 className="h-5 w-5 shrink-0 text-[#A0522D]" aria-hidden />
+                  {type === "group" ? t("chat.menuCopyGroupInviteLink") : t("chat.menuCopyChatLink")}
+                </button>
+              ) : null}
             </motion.div>
           </motion.div>
         ) : null}
