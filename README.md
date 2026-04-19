@@ -10,6 +10,8 @@ Basic mobile-first React + Tailwind starter for a food inspiration app powered b
 4. Add your Gemini API key to `VITE_GEMINI_API_KEY`.
 5. Run `npm run dev`.
 
+**Clerk + Supabase + Vercel 프로덕션:** [AUTH_SUPABASE_SETUP.md](./AUTH_SUPABASE_SETUP.md) · [VERCEL_PRODUCTION_CHECKLIST.md](./VERCEL_PRODUCTION_CHECKLIST.md)
+
 ## Stack
 
 - React with Vite-style structure

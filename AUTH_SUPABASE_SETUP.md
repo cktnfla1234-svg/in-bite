@@ -130,6 +130,12 @@ After successful signup, inspect `public.profiles`:
 - `current_tastes` gets filled after onboarding submission.
 - `onboarding_completed = true` after onboarding is saved.
 
+## Production (Vercel)
+
+배포 URL에서만 동작이 깨질 때는 **Vercel Production 환경 변수**, **Clerk JWT 템플릿 `supabase`**, **Supabase RLS SQL**을 순서대로 점검합니다.
+
+→ **[VERCEL_PRODUCTION_CHECKLIST.md](./VERCEL_PRODUCTION_CHECKLIST.md)** (한국어 단계별 가이드)
+
 ## 7) Troubleshooting
 
 - White screen on auth pages:
