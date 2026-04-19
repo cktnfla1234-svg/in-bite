@@ -669,7 +669,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
                   <div className="truncate text-[13px] font-semibold text-[#A0522D]">{post.city}</div>
                   <div className="text-[11px] text-[#A0522D]/60">{formatDateTimeLabel(post.createdAtIso)}</div>
                 </div>
-                <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[#2C1A0E]/85">{post.text}</p>
+                <p className="mt-1 line-clamp-2 whitespace-pre-line text-[12px] leading-5 text-[#2C1A0E]/85">{post.text}</p>
               </button>
             ))
           )}

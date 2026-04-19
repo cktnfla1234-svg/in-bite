@@ -703,7 +703,7 @@ export function ExploreScreen({
       {dailyBiteEditPost ? (
         <motion.div
           key="daily-edit"
-          className="fixed inset-0 z-[86] flex items-end justify-center bg-black/25 p-3 sm:items-center"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/25 p-3 sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -713,58 +713,64 @@ export function ExploreScreen({
             role="dialog"
             aria-modal="true"
             aria-labelledby="daily-bite-edit-title"
-            className="max-h-[min(92vh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_24px_60px_rgba(42,36,32,0.18)]"
+            className="flex min-h-0 max-h-[min(88dvh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[#E6D2BF] bg-[#FFFBF6] shadow-[0_24px_60px_rgba(42,36,32,0.18)] sm:max-h-[min(92dvh,720px)]"
             initial={{ y: 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 16, opacity: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="daily-bite-edit-title" className="text-[17px] font-semibold text-[#2C1A0E]">
-              {t("explore.dailyBiteEditModalTitle")}
-            </h2>
-            <label className="mt-4 block text-[12px] font-semibold text-[#A0522D]/85">
-              {t("explore.dailyBiteEditBodyLabel")}
-              <textarea
-                value={editDraft.text}
-                onChange={(e) => setEditDraft((d) => ({ ...d, text: e.target.value }))}
-                rows={5}
-                className="mt-1.5 w-full resize-y rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
-              />
-            </label>
-            <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/85">
-              {t("explore.dailyBiteEditCityLabel")}
-              <input
-                type="text"
-                value={editDraft.city}
-                onChange={(e) => setEditDraft((d) => ({ ...d, city: e.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
-              />
-            </label>
-            <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/85">
-              {t("explore.dailyBiteEditBioLabel")}
-              <input
-                type="text"
-                value={editDraft.authorBio}
-                onChange={(e) => setEditDraft((d) => ({ ...d, authorBio: e.target.value }))}
-                className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
-              />
-            </label>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDailyBiteEditPost(null)}
-                className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveDailyBiteEdit()}
-                className="rounded-full bg-[#A0522D] px-4 py-2 text-[13px] font-semibold text-white shadow-sm"
-              >
-                {t("common.save")}
-              </button>
+            <div className="shrink-0 px-5 pt-5">
+              <h2 id="daily-bite-edit-title" className="text-[17px] font-semibold text-[#2C1A0E]">
+                {t("explore.dailyBiteEditModalTitle")}
+              </h2>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-5 pt-4">
+              <label className="block text-[12px] font-semibold text-[#A0522D]/85">
+                {t("explore.dailyBiteEditBodyLabel")}
+                <textarea
+                  value={editDraft.text}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, text: e.target.value }))}
+                  rows={6}
+                  className="mt-1.5 w-full resize-y rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
+                />
+              </label>
+              <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/85">
+                {t("explore.dailyBiteEditCityLabel")}
+                <input
+                  type="text"
+                  value={editDraft.city}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, city: e.target.value }))}
+                  className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
+                />
+              </label>
+              <label className="mt-3 block pb-4 text-[12px] font-semibold text-[#A0522D]/85 max-sm:pb-6">
+                {t("explore.dailyBiteEditBioLabel")}
+                <input
+                  type="text"
+                  value={editDraft.authorBio}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, authorBio: e.target.value }))}
+                  className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
+                />
+              </label>
+              <div className="sticky bottom-0 z-10 -mx-5 border-t border-[#E6D2BF]/90 bg-[#FFFBF6]/98 px-5 pt-3 shadow-[0_-10px_24px_rgba(42,36,32,0.06)] backdrop-blur-sm max-sm:pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+5.75rem))] sm:pb-3">
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDailyBiteEditPost(null)}
+                    className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
+                  >
+                    {t("common.cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveDailyBiteEdit()}
+                    className="rounded-full bg-[#A0522D] px-4 py-2 text-[13px] font-semibold text-white shadow-sm"
+                  >
+                    {t("common.save")}
+                  </button>
+                </div>
+              </div>
             </div>
           </motion.div>
         </motion.div>
@@ -772,7 +778,7 @@ export function ExploreScreen({
       {dailyBiteDeleteId ? (
         <motion.div
           key="daily-delete"
-          className="fixed inset-0 z-[86] flex items-center justify-center bg-black/25 p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/25 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -1318,7 +1324,7 @@ function DailyBiteCard({
         </div>
       ) : null}
 
-      <p className="mt-4 text-[14px] leading-6 text-[#2C1A0E]">{displayBody}</p>
+      <p className="mt-4 whitespace-pre-wrap break-words text-[14px] leading-6 text-[#2C1A0E]">{displayBody}</p>
 
       <div className="mt-3 flex items-center gap-4 text-[12px] font-semibold text-[#A0522D]/70">
         {allowLike ? (
@@ -1774,7 +1780,7 @@ function DailyBiteCommentsSection({
           return (
             <div key={c.id} className="rounded-xl border border-[#EDE4DB] bg-white/75 px-3 py-2.5">
               <div className="text-[12px] font-semibold text-[#A0522D]/85">{c.authorName}</div>
-              <p className="mt-1 text-[13px] leading-relaxed text-[#2C1A0E]">{c.text}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[#2C1A0E]">{c.text}</p>
               <div className="mt-1.5 flex items-center gap-3 text-[11px] text-[#A0522D]/45">
                 <button
                   type="button"
