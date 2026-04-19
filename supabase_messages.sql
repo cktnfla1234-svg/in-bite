@@ -25,17 +25,18 @@ drop policy if exists "messages_insert_as_sender" on public.messages;
 drop policy if exists messages_insert_as_sender on public.messages;
 
 -- Read if you sent, were addressed, or are in the room's participant list on chat_rooms.
+-- Cast to text so this works whether legacy columns were uuid or text (avoids "uuid = text").
 create policy messages_select_participants
   on public.messages
   for select
   to authenticated
   using (
-    sender_id = (auth.jwt() ->> 'sub')
-    or receiver_id = (auth.jwt() ->> 'sub')
+    sender_id::text = (auth.jwt() ->> 'sub')
+    or receiver_id::text = (auth.jwt() ->> 'sub')
     or exists (
       select 1
       from public.chat_rooms cr
-      where cr.id = messages.room_id
+      where cr.id::text = messages.room_id::text
         and (auth.jwt() ->> 'sub') = any (cr.participant_clerk_ids)
     )
   );
@@ -44,7 +45,7 @@ create policy messages_insert_as_sender
   on public.messages
   for insert
   to authenticated
-  with check (sender_id = (auth.jwt() ->> 'sub'));
+  with check (sender_id::text = (auth.jwt() ->> 'sub'));
 
 -- If you created `messages` before this script added `kind`:
 -- alter table public.messages add column if not exists kind text null;
