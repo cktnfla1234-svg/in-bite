@@ -40,13 +40,14 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
   const [fallbackImage, setFallbackImage] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [snapshot, setSnapshot] = useState<PublicProfileSnapshot | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  /** True when the last open attempted Supabase with a JWT (so a missing snapshot may be an RPC/DB issue). */
+  const [lastFetchHadToken, setLastFetchHadToken] = useState(false);
 
   const closeUserProfile = useCallback(() => {
     setOpen(false);
     setClerkId(null);
     setSnapshot(null);
-    setLoadError(false);
+    setLastFetchHadToken(false);
     setLoading(false);
   }, []);
 
@@ -58,22 +59,20 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
       setFallbackName(args.fallbackDisplayName?.trim() || "");
       setFallbackImage(args.fallbackImageUrl?.trim() || undefined);
       setSnapshot(null);
-      setLoadError(false);
+      setLastFetchHadToken(false);
       setOpen(true);
       setLoading(true);
       void (async () => {
         try {
           const token = (await getSupabaseToken?.()) ?? null;
+          setLastFetchHadToken(Boolean(token));
           if (!token) {
-            setLoadError(true);
             setSnapshot(null);
             return;
           }
           const row = await fetchPublicProfileByClerkId(id, token);
           setSnapshot(row);
-          if (!row) setLoadError(true);
         } catch {
-          setLoadError(true);
           setSnapshot(null);
         } finally {
           setLoading(false);
@@ -88,6 +87,13 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
     fallbackName ||
     t("profilePreview.fallbackName");
   const imageUrl = snapshot?.image_url?.trim() || fallbackImage;
+
+  /** Only show the RPC/setup hint when Supabase was called but we still have no row and no UI fallbacks. */
+  const showHardLoadError =
+    !loading &&
+    lastFetchHadToken &&
+    !snapshot &&
+    !(fallbackName?.trim() || fallbackImage?.trim());
 
   const value = useMemo(
     () => ({
@@ -138,10 +144,15 @@ export function UserProfilePreviewProvider({ children, getSupabaseToken }: Provi
                 </h2>
                 {loading ? (
                   <p className="mt-2 text-[13px] text-[#A0522D]/65">{t("loading")}</p>
-                ) : loadError && !snapshot ? (
+                ) : showHardLoadError ? (
                   <p className="mt-2 text-[13px] text-[#A0522D]/70">{t("profilePreview.loadError")}</p>
                 ) : (
                   <div className="mt-3 w-full space-y-2 text-left text-[13px] text-[#2C1A0E]/88">
+                    {!loading && !snapshot && (fallbackName?.trim() || fallbackImage?.trim()) ? (
+                      <p className="text-center text-[11px] leading-relaxed text-[#A0522D]/55">
+                        {t("profilePreview.serverExtrasHint")}
+                      </p>
+                    ) : null}
                     {snapshot?.profile_city ? (
                       <p>
                         <span className="font-semibold text-[#A0522D]/85">{t("profilePreview.city")}</span>{" "}

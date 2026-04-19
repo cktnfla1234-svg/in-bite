@@ -220,6 +220,7 @@
   "profilePreview": {
     "fallbackName": "회원",
     "loadError": "프로필을 불러오지 못했습니다. Supabase에서 supabase_public_profile_rpc.sql 실행 후 다시 로그인해 보세요.",
+    "serverExtrasHint": "도시·소개 등 저장된 항목은 Supabase에서 supabase_public_profile_rpc.sql을 실행한 뒤(필요하면 다시 로그인) 여기에 표시됩니다.",
     "city": "위치",
     "mbti": "MBTI",
     "hobbies": "관심사",

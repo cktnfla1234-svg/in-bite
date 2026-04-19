@@ -220,6 +220,7 @@
   "profilePreview": {
     "fallbackName": "Member",
     "loadError": "Profile details are unavailable. If this is unexpected, run supabase_public_profile_rpc.sql in Supabase and sign in again.",
+    "serverExtrasHint": "City, bio, and other saved fields appear here after you run supabase_public_profile_rpc.sql in Supabase (and sign in again if needed).",
     "city": "Location",
     "mbti": "MBTI",
     "hobbies": "Interests",
