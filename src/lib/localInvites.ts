@@ -24,6 +24,10 @@ export type LocalInvite = {
   capacity: number;
   meetupAt: string;
   createdAt: string;
+  /** When set, Explore / Say Hi treat this invite as hosted by this Clerk user (not the viewer). */
+  hostClerkId?: string;
+  /** Shown on cards when hostClerkId is set (e.g. "Surim Cha"). */
+  hostDisplayName?: string;
 };
 
 const LOCAL_INVITES_KEY = "inbite:local-invites";
@@ -59,6 +63,8 @@ function coerceLocalInvite(raw: Record<string, unknown>): LocalInvite | null {
     capacity: Number.isFinite(Number(raw.capacity)) ? Math.max(1, Number(raw.capacity)) : 2,
     meetupAt: typeof raw.meetupAt === "string" ? raw.meetupAt : "",
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
+    hostClerkId: typeof raw.hostClerkId === "string" ? raw.hostClerkId : undefined,
+    hostDisplayName: typeof raw.hostDisplayName === "string" ? raw.hostDisplayName : undefined,
   };
 }
 

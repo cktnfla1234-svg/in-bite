@@ -143,11 +143,14 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
 
   useEffect(() => {
     const syncInvites = () => {
-      setInviteeHistory(getLocalInvites());
+      const uid = user?.id;
+      const all = getLocalInvites();
+      const mine = uid ? all.filter((i) => !i.hostClerkId || i.hostClerkId === uid) : all;
+      setInviteeHistory(mine);
     };
     syncInvites();
     return subscribeLocalInvitesSync(syncInvites);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const uid = user?.id;

@@ -234,6 +234,12 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       }
     }
 
+    const hostDisplay =
+      user?.fullName?.trim() ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+      user?.username?.trim() ||
+      undefined;
+
     addLocalInvite({
       id: crypto.randomUUID(),
       title: title.trim(),
@@ -250,6 +256,8 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       capacity,
       meetupAt,
       createdAt: new Date().toISOString(),
+      hostClerkId: user?.id,
+      hostDisplayName: hostDisplay,
     });
 
     setSaveError("");

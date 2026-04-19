@@ -48,6 +48,7 @@ import {
 } from "@/lib/dailyBiteCommentLikes";
 import { useDisplayPostBody } from "@/lib/contentTranslation";
 import { listOwnInvites, type InviteRow } from "@/lib/invites";
+import { isSurimChaDemoUser, upsertSurimChaDemoInvites } from "@/lib/surimChaDemoInvites";
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchDailyBiteComments, insertDailyBiteComment, type RemoteDailyBiteCommentRow } from "@/lib/dailyBiteCommentsRemote";
 import { isSelectableCurrency } from "@/lib/currency";
@@ -232,6 +233,12 @@ export function ExploreScreen({
       ) : null}
     </button>
   );
+
+  useEffect(() => {
+    if (!user) return;
+    if (!isSurimChaDemoUser(user)) return;
+    upsertSurimChaDemoInvites(user);
+  }, [user?.id, user?.fullName, user?.firstName, user?.lastName, user?.username]);
 
   useEffect(() => {
     const syncLocalInvites = () => {
@@ -1850,12 +1857,21 @@ function mapLocalInviteToExperience(
   const includedIds = invite.includedOptions ?? [];
   const includedItems = includedIds.map((id) => INCLUDED_LABEL_MAP[id]).filter(Boolean);
 
+  const ownerClerkId = invite.hostClerkId ?? myClerkId ?? undefined;
+  const hostName =
+    invite.hostDisplayName ??
+    (!invite.hostClerkId || invite.hostClerkId === myClerkId ? "You" : "Host");
+  const hostAvatarUrl =
+    invite.hostClerkId && invite.hostClerkId !== myClerkId
+      ? getProfileAvatar(invite.hostClerkId) || undefined
+      : myAvatarUrl;
+
   return {
     id: invite.id,
     title: invite.title,
-    hostName: "You",
-    hostClerkId: myClerkId ?? undefined,
-    hostAvatarUrl: myAvatarUrl,
+    hostName,
+    hostClerkId: ownerClerkId,
+    hostAvatarUrl,
     coverPhotoUrl: invite.primaryPhotoUrl,
     city,
     country,
@@ -1906,6 +1922,7 @@ function mapInviteRowToLocalInvite(row: InviteRow): LocalInvite {
     itinerary: Array.isArray(row.itinerary) ? row.itinerary : [],
     tasteTags: Array.isArray(row.taste_tags) ? row.taste_tags : [],
     includedOptions: Array.isArray(row.included_options) ? row.included_options : [],
+    hostClerkId: typeof row.clerk_id === "string" ? row.clerk_id : undefined,
     priceAmount: Number(row.price_amount ?? 0),
     hostCurrency:
       typeof row.host_currency === "string" && isSelectableCurrency(row.host_currency)
