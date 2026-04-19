@@ -551,6 +551,13 @@ export function ExploreScreen({
     }
   }, [section, mode]);
 
+  useEffect(() => {
+    if (mode === "dailyDetail" && !selectedDailyPost) {
+      setMode("feed");
+      setSelectedDailyPostId(null);
+    }
+  }, [mode, selectedDailyPost]);
+
   const handleOpenHost = (experienceId?: string) => {
     if (onRequireAuth && !onRequireAuth("booking")) return;
     const target =
