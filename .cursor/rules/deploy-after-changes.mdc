@@ -1,0 +1,15 @@
+---
+description: After code changes, run deploy (build, commit, push) so Vercel ships.
+alwaysApply: true
+---
+
+# Deploy after modifications
+
+When you **finish** changes to this repo (application code, config, scripts, or SQL that ships with the app), **deploy automatically** unless the user explicitly asked not to push or not to deploy.
+
+1. Run `npm run build` if you have not already confirmed a successful build in this turn.
+2. Run **`npm run deploy -- "<type>: concise description>"`** from the project root, using a short English conventional-style subject (for example `fix:`, `feat:`, `chore:`). The script runs build again, commits any uncommitted changes with that message, and `git push` to trigger **Vercel** (GitHub `main`).
+
+If `git push` fails (auth, conflicts), report the error and tell the user what is blocking; do not claim deploy succeeded.
+
+Skip deploy only when: the user said not to deploy/push; there were **no** file edits and nothing to ship; or the task was documentation-only **and** the user did not ask for deploy.

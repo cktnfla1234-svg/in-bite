@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:env": "node ./scripts/check-env.mjs"
+    "check:env": "node ./scripts/check-env.mjs",
+    "deploy": "node ./scripts/deploy.mjs"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.5",

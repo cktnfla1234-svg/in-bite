@@ -1,11 +1,12 @@
 ﻿import { useAuth, useUser } from "@clerk/clerk-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChatListScreen } from "./ChatListScreen";
 import { ChatRoomScreen } from "./ChatRoomScreen";
 import { listChatRooms, listRoomMessages, sendChatMessage, type ChatRoomRecord } from "@/lib/chat";
 import { useUserProfilePreview } from "@/app/context/UserProfilePreviewContext";
-import { getProfileAvatar } from "@/lib/profileAvatarStore";
+import { getProfileAvatar, subscribeProfileAvatarSync } from "@/lib/profileAvatarStore";
+import { prefetchPublicProfileAvatars } from "@/lib/publicProfile";
 import { createPaymentIntent } from "@/lib/payments";
 import type { CurrencyCode } from "@/lib/currency";
 
@@ -40,6 +41,7 @@ export function ChatScreen({
   const { openUserProfile } = useUserProfilePreview();
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatRoomRecord[]>([]);
+  const [avatarTick, setAvatarTick] = useState(0);
   const consumedLaunchNonce = useRef<number | null>(null);
   const displayName =
     user?.firstName?.trim() ||
@@ -53,6 +55,32 @@ export function ChatScreen({
   useEffect(() => {
     setChats(listChatRooms());
   }, [launchNonce, openGroupChatNonce]);
+
+  useEffect(() => subscribeProfileAvatarSync(() => setAvatarTick((n) => n + 1)), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token || cancelled) return;
+        const ids = new Set<string>();
+        for (const chat of chats) {
+          if (chat.type !== "direct") continue;
+          const peer = chat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"));
+          if (peer) ids.add(peer);
+        }
+        if (!ids.size) return;
+        await prefetchPublicProfileAvatars([...ids], token);
+        if (!cancelled) setAvatarTick((n) => n + 1);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chats, myUserId, getToken]);
 
   useEffect(() => {
     if (!chatLaunch?.chatId) return;
@@ -74,13 +102,33 @@ export function ChatScreen({
     [activeChatId, chats],
   );
 
+  const chatListItems = useMemo(() => {
+    return chats.map((chat) => {
+      const peerId =
+        chat.type === "direct"
+          ? chat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
+          : undefined;
+      const profileImageUrl = peerId ? getProfileAvatar(peerId) : undefined;
+      return {
+        ...chat,
+        profileName: chat.type === "direct" ? chat.title : undefined,
+        profileUserId: peerId,
+        profileImageUrl,
+        timeLabel: new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        participants: chat.participantIds,
+      };
+    });
+  }, [chats, myUserId, avatarTick]);
+
   const directPeerClerkId =
     activeChat?.type === "direct"
       ? activeChat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
       : undefined;
   const directPeerName = activeChat?.type === "direct" ? activeChat.title : undefined;
 
-  return activeChat ? (
+  let roomNode: ReactNode;
+  if (activeChat) {
+    roomNode = (
     <ChatRoomScreen
       chatId={activeChat.id}
       title={activeChat.title}
@@ -151,21 +199,11 @@ export function ChatScreen({
       }}
       onBack={() => setActiveChatId(null)}
     />
-  ) : (
+    );
+  } else {
+    roomNode = (
     <ChatListScreen
-      items={chats.map((chat) => ({
-        ...chat,
-        profileName:
-          chat.type === "direct"
-            ? chat.title
-            : undefined,
-        profileUserId:
-          chat.type === "direct"
-            ? chat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
-            : undefined,
-        timeLabel: new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        participants: chat.participantIds,
-      }))}
+      items={chatListItems}
       onSelectChat={setActiveChatId}
       onOpenProfile={({ userId, name }) => {
         if (!userId.startsWith("user_")) return;
@@ -176,5 +214,7 @@ export function ChatScreen({
         });
       }}
     />
-  );
+    );
+  }
+  return roomNode;
 }

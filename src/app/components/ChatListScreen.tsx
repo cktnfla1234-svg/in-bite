@@ -8,6 +8,8 @@ export type ChatListItem = {
   timeLabel: string;
   profileName?: string;
   profileUserId?: string;
+  /** Resolved from profile cache / Supabase for direct chats. */
+  profileImageUrl?: string | null;
   unreadCount?: number;
   participants?: string[];
 };
@@ -76,9 +78,13 @@ export function ChatListScreen({ items, onSelectChat, onOpenProfile }: ChatListS
                       className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-white/70 bg-[#E7D7C7]"
                       aria-label={c.profileName ? `View ${c.profileName} profile` : "View profile"}
                     >
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <CookieLogo size={22} />
-                      </div>
+                      {c.profileImageUrl ? (
+                        <img src={c.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <CookieLogo size={22} />
+                        </div>
+                      )}
                     </button>
                   )}
 

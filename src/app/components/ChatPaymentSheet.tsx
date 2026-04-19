@@ -78,7 +78,7 @@ export function ChatPaymentSheet({ open, clientSecret, amount, currency, onClose
   return (
     <motion.div
       key="payment-sheet"
-      className="fixed inset-0 z-[74]"
+      className="fixed inset-0 z-[96]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

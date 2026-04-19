@@ -362,7 +362,7 @@ export function ChatRoomScreen({
         {paymentPickerOpen ? (
           <motion.div
             key="payment-picker"
-            className="fixed inset-0 z-[73]"
+            className="fixed inset-0 z-[96]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -375,43 +375,15 @@ export function ChatRoomScreen({
               onClick={() => setPaymentPickerOpen(false)}
             />
             <motion.div
-              className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 pb-8 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
+              className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
             >
-              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[#E3D3C5]" />
+              <div className="mx-auto mb-4 h-1.5 w-10 shrink-0 rounded-full bg-[#E3D3C5]" />
               <h2 className="text-[16px] font-bold text-[#7A4B2F]">{t("chat.paymentTitle")}</h2>
               <p className="mt-1 text-[12px] leading-relaxed text-[#A0522D]/70">{t("chat.paymentPickHint")}</p>
-              <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/70">{t("chat.paymentCurrencyLabel")}</label>
-              <div className="mt-2 flex gap-2">
-                {paymentOptions.map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => setPaymentCurrency(code)}
-                    className={
-                      paymentCurrency === code
-                        ? "rounded-xl border border-[#A0522D] bg-[#FFF0E6] px-3 py-2 text-[13px] font-semibold text-[#A0522D]"
-                        : "rounded-xl border border-[#E4CCB8] bg-white px-3 py-2 text-[13px] font-semibold text-[#A0522D]/75"
-                    }
-                  >
-                    {code}
-                  </button>
-                ))}
-              </div>
-              <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/70">{t("chat.paymentAmountInput")}</label>
-              <input
-                type="number"
-                min={1}
-                step={paymentCurrency === "KRW" ? 1000 : 1}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(Math.max(1, Number(e.target.value) || 1))}
-                className="mt-2 w-full rounded-2xl border border-[#E9D6C6] bg-white px-3 py-2.5 text-[14px] text-[#7A4B2F] outline-none"
-              />
-              <div className="mt-2 text-[12px] text-[#A0522D]/70">{t("chat.paymentAmountLabel", { amount: paymentAmountLabel })}</div>
-              {paymentError ? <p className="mt-2 text-[12px] text-red-600">{paymentError}</p> : null}
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
@@ -443,6 +415,34 @@ export function ChatRoomScreen({
                   {paymentBusy ? t("chat.paymentProcessing") : t("chat.paymentContinue")}
                 </button>
               </div>
+              <label className="mt-4 block text-[12px] font-semibold text-[#A0522D]/70">{t("chat.paymentCurrencyLabel")}</label>
+              <div className="mt-2 flex gap-2">
+                {paymentOptions.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setPaymentCurrency(code)}
+                    className={
+                      paymentCurrency === code
+                        ? "rounded-xl border border-[#A0522D] bg-[#FFF0E6] px-3 py-2 text-[13px] font-semibold text-[#A0522D]"
+                        : "rounded-xl border border-[#E4CCB8] bg-white px-3 py-2 text-[13px] font-semibold text-[#A0522D]/75"
+                    }
+                  >
+                    {code}
+                  </button>
+                ))}
+              </div>
+              <label className="mt-3 block text-[12px] font-semibold text-[#A0522D]/70">{t("chat.paymentAmountInput")}</label>
+              <input
+                type="number"
+                min={1}
+                step={paymentCurrency === "KRW" ? 1000 : 1}
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(Math.max(1, Number(e.target.value) || 1))}
+                className="mt-2 w-full rounded-2xl border border-[#E9D6C6] bg-white px-3 py-2.5 text-[14px] text-[#7A4B2F] outline-none"
+              />
+              <div className="mt-2 text-[12px] text-[#A0522D]/70">{t("chat.paymentAmountLabel", { amount: paymentAmountLabel })}</div>
+              {paymentError ? <p className="mt-2 text-[12px] text-red-600">{paymentError}</p> : null}
             </motion.div>
           </motion.div>
         ) : null}
