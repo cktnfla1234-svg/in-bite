@@ -1303,6 +1303,8 @@ function DailyBiteCard({
   const normalizedHostId = clerkHostId
     ? `host:${clerkHostId}`
     : `daily-author:${post.authorName.trim().toLowerCase().replace(/\s+/g, "-")}`;
+  /** Real Clerk users: use raw `user_*` so direct rooms are not stripped by `removeSyntheticChatRooms`. */
+  const sayHiHostId = clerkHostId.startsWith("user_") ? clerkHostId : normalizedHostId;
 
   useEffect(() => {
     if (!postMenuOpen) return;
@@ -1362,7 +1364,7 @@ function DailyBiteCard({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSayHiHost?.({ hostId: normalizedHostId, hostName: post.authorName });
+                    onSayHiHost?.({ hostId: sayHiHostId, hostName: post.authorName });
                   }}
                   className="rounded-full border border-[#A0522D]/45 bg-white/75 px-2.5 py-0.5 text-[11px] font-semibold lowercase tracking-[0.01em] text-[#A0522D] hover:bg-[#A0522D]/5"
                 >

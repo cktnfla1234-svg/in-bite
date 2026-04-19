@@ -101,7 +101,7 @@ export function UserProfilePreviewProvider({
       snapshot?.display_name?.trim() ||
       fallbackName.trim() ||
       t("profilePreview.fallbackName");
-    onSayHiHost?.({ hostId: `host:${id}`, hostName: name });
+    onSayHiHost?.({ hostId: id, hostName: name });
     closeUserProfile();
   }, [clerkId, currentUserClerkId, snapshot?.display_name, fallbackName, onSayHiHost, closeUserProfile, t]);
 

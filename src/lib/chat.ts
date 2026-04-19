@@ -130,24 +130,37 @@ async function syncSupabaseRoomAndMessage(args: {
   content: string;
   accessToken: string;
 }) {
-  try {
-    const supabase = getSupabaseClient(args.accessToken);
-    if (!supabase) return;
-    await supabase.from("chat_rooms").upsert({
+  const supabase = getSupabaseClient(args.accessToken);
+  if (!supabase) return;
+  const iso = nowIso();
+  const participant_clerk_ids = [args.senderId, args.receiverId].filter(Boolean);
+  const { error: roomErr } = await supabase.from("chat_rooms").upsert(
+    {
       id: args.roomId,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    });
-    await supabase.from("messages").insert({
-      room_id: args.roomId,
-      sender_id: args.senderId,
-      receiver_id: args.receiverId,
-      content: args.content,
-      created_at: nowIso(),
-    });
-  } catch {
-    // Keep UX resilient when backend schema is not ready.
+      created_at: iso,
+      updated_at: iso,
+      participant_clerk_ids,
+    },
+    { onConflict: "id" },
+  );
+  if (roomErr) {
+    const { error: legacyErr } = await supabase.from("chat_rooms").upsert(
+      { id: args.roomId, created_at: iso, updated_at: iso },
+      { onConflict: "id" },
+    );
+    if (legacyErr) {
+      console.warn("[chat] chat_rooms upsert", roomErr, legacyErr);
+      return;
+    }
   }
+  const { error: msgErr } = await supabase.from("messages").insert({
+    room_id: args.roomId,
+    sender_id: args.senderId,
+    receiver_id: args.receiverId,
+    content: args.content,
+    created_at: iso,
+  });
+  if (msgErr) console.warn("[chat] messages insert", msgErr);
 }
 
 export async function startSayHiChat({
@@ -189,7 +202,7 @@ export async function startSayHiChat({
   });
 
   if (accessToken) {
-    void syncSupabaseRoomAndMessage({
+    await syncSupabaseRoomAndMessage({
       roomId,
       senderId: meId,
       receiverId: hostId,
@@ -202,12 +215,13 @@ export async function startSayHiChat({
 }
 
 function isSyntheticParticipantId(userId: string) {
-  return (
-    userId === "guest" ||
-    userId.startsWith("host:") ||
-    userId.startsWith("daily-author:") ||
-    userId.startsWith("demo:")
-  );
+  if (userId === "guest") return true;
+  if (userId.startsWith("daily-author:")) return true;
+  if (userId.startsWith("demo:")) return true;
+  /** `host:user_…` was a mistaken legacy shape for a real Clerk user — keep those rooms. */
+  if (userId.startsWith("host:user_")) return false;
+  if (userId.startsWith("host:")) return true;
+  return false;
 }
 
 export function removeSyntheticChatRooms() {
