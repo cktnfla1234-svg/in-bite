@@ -434,7 +434,7 @@ export default function AppShell({
       onSayHiHost={({ hostId, hostName }) => void openSayHiChat(hostId, hostName)}
       currentUserClerkId={welcomeClerkUserId}
     >
-    <div className="relative flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#FDFAF5]">
+    <div className="relative box-border flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#FDFAF5] pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))]">
       <Toaster
         richColors={false}
         toastOptions={{
@@ -449,15 +449,9 @@ export default function AppShell({
       <div
         ref={tabScrollRef}
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [flex-basis:0]"
-        style={{ paddingBottom: "calc(5.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
         {/* Keep all tab roots mounted (display toggle) so Daily Bite / Framer exit cannot leave other tabs painting nothing. */}
-        <div
-          className="relative flex w-full flex-col"
-          style={{
-            minHeight: "calc(100dvh - 5.75rem - env(safe-area-inset-bottom, 0px))",
-          }}
-        >
+        <div className="relative flex min-h-full w-full flex-col">
           <div className={tabPanelClass("home")}>
             <HomeScreen
               isSignedIn={isSignedIn}

@@ -1,5 +1,7 @@
 :root {
   color-scheme: light;
+  /** Bottom tab bar row height (see `BottomNav`); safe area is added in layout padding via `env(safe-area-inset-bottom)`. */
+  --app-bottom-nav-height: 5.75rem;
   --color-bg: #FDFAF5;
   --color-terra: #A0522D;
   --color-text-primary: #2C1A0E;
