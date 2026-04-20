@@ -293,6 +293,12 @@
   "wallet": {
     "recentActivity": "최근 활동"
   },
+  "createDraft": {
+    "restoreTitle": "이전에 작성하던 내용을 불러올까요?",
+    "restoreBody": "예를 누르면 이어서 작성할 수 있고, 아니오를 누르면 새로 시작합니다.",
+    "restoreYes": "예",
+    "restoreNo": "아니오"
+  },
   "onboarding": {
     "tastesTitle": "지금의 취향을 골라 주세요",
     "tastesSubtitle": "지금 즐기는 것을 선택하면 호스트와 초대 추천을 맞춤화해 드려요.",

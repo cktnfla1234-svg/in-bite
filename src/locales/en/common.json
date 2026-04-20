@@ -293,6 +293,12 @@
   "wallet": {
     "recentActivity": "Recent activity"
   },
+  "createDraft": {
+    "restoreTitle": "Restore your previous draft?",
+    "restoreBody": "Tap Yes to continue where you left off, or No to start fresh.",
+    "restoreYes": "Yes",
+    "restoreNo": "No"
+  },
   "onboarding": {
     "tastesTitle": "Pick Your Current Tastes",
     "tastesSubtitle": "Choose what you enjoy right now. We'll personalize hosts and invitations based on your tastes.",

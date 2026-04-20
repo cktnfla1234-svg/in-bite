@@ -47,6 +47,7 @@ import { playCrunchNotificationSound } from "@/lib/notificationSound";
 import { getFcmDeviceToken } from "@/lib/pushNotifications";
 import { updateProfileDeviceToken } from "@/lib/profile";
 import { subscribeWebPush } from "@/lib/pwaPush";
+import { clearCreateTourDraft, hasCreateTourDraft } from "@/lib/createTourDraft";
 
 type Tab = "home" | "explore" | "chat" | "profile";
 
@@ -101,6 +102,8 @@ export default function AppShell({
 }: AppShellProps) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createRestoreDraft, setCreateRestoreDraft] = useState(false);
+  const [createDraftPromptOpen, setCreateDraftPromptOpen] = useState(false);
   const [createDailyInbiteOpen, setCreateDailyInbiteOpen] = useState(false);
   const [authState, setAuthState] = useState<{
     open: boolean;
@@ -155,6 +158,15 @@ export default function AppShell({
   const handleCardClick = (id: string) => {
     console.log("card clicked:", id);
   };
+
+  const openCreateTourFlow = useCallback(() => {
+    const clerkId = welcomeClerkUserId ?? "guest";
+    // Open immediately so FAB click always has visible feedback.
+    // If a draft exists, restore it directly in the sheet.
+    setCreateDraftPromptOpen(false);
+    setCreateRestoreDraft(hasCreateTourDraft(clerkId));
+    setCreateOpen(true);
+  }, [welcomeClerkUserId]);
 
   const openSayHiChat = async (hostId: string, hostName: string) => {
     if (!requireAuth("chat")) return;
@@ -271,12 +283,14 @@ export default function AppShell({
       const payload = event.data as { type?: string; chatId?: string; postId?: string; url?: string } | null;
       if (!payload?.type) return;
       if (payload.type === "OPEN_CHAT" && payload.chatId) {
+        if (createOpen) setCreateOpen(false);
         setActiveTab("chat");
         setChatLaunch({ chatId: payload.chatId, nonce: Date.now() });
         navigate(`/chat/${encodeURIComponent(payload.chatId)}`);
         return;
       }
       if (payload.type === "OPEN_POST" && payload.postId) {
+        if (createOpen) setCreateOpen(false);
         setPendingDailyPostId(payload.postId);
         setExploreSection("dailyBites");
         setActiveTab("explore");
@@ -424,11 +438,13 @@ export default function AppShell({
   useEffect(() => {
     const path = location.pathname;
     if (path.startsWith("/chat/")) {
+      setCreateOpen(false);
       setPendingDailyPostId(null);
       setActiveTab("chat");
       return;
     }
     if (path.startsWith("/daily-bite/")) {
+      setCreateOpen(false);
       const rawPostId = path.split("/daily-bite/")[1] ?? "";
       const decodedPostId = decodeURIComponent(rawPostId);
       if (decodedPostId) setPendingDailyPostId(decodedPostId);
@@ -437,16 +453,25 @@ export default function AppShell({
       return;
     }
     if (path.startsWith("/explore")) {
+      setCreateOpen(false);
       setPendingDailyPostId(null);
       setActiveTab("explore");
       return;
     }
     if (path === "/messages") {
+      setCreateOpen(false);
       setPendingDailyPostId(null);
       setActiveTab("chat");
       return;
     }
+    if (path === "/profile") {
+      setCreateOpen(false);
+      setPendingDailyPostId(null);
+      setActiveTab("profile");
+      return;
+    }
     if (path === "/app") {
+      setCreateOpen(false);
       setPendingDailyPostId(null);
       setActiveTab("home");
       return;
@@ -510,7 +535,8 @@ export default function AppShell({
   const tabPanelClass = (tab: Tab) =>
     activeTab === tab ? "block w-full min-h-0 flex-1 flex flex-col" : "hidden";
   const isCreateModalOpen = createOpen || createDailyInbiteOpen;
-  const showFloatingActionButton = activeTab !== "chat" && !dailyBiteEditModalOpen && !isCreateModalOpen;
+  const showFloatingActionButton =
+    activeTab !== "chat" && !dailyBiteEditModalOpen && !isCreateModalOpen && !createDraftPromptOpen;
 
   return (
     <PreferredCurrencyProvider>
@@ -603,7 +629,7 @@ export default function AppShell({
             <ProfileScreen
               onOpenCreateTour={() => {
                 if (!requireAuth("sharing")) return;
-                setCreateOpen(true);
+                openCreateTourFlow();
               }}
             />
           </div>
@@ -616,7 +642,9 @@ export default function AppShell({
         onTabChange={(next) => {
           if (next === "profile" && !requireAuth("booking")) return;
           if (next === "chat" && !requireAuth("chat")) return;
+          if (createOpen) setCreateOpen(false);
           setActiveTab(next);
+          if (next === "profile" && location.pathname !== "/profile") navigate("/profile");
           if (next === "explore" && location.pathname !== "/explore") navigate("/explore");
           if (next === "home" && location.pathname !== "/app") navigate("/app");
           if (
@@ -666,7 +694,7 @@ export default function AppShell({
                   setCreateDailyInbiteOpen(true);
                   return;
                 }
-                setCreateOpen(true);
+                openCreateTourFlow();
               }}
             />
           </motion.div>
@@ -684,7 +712,7 @@ export default function AppShell({
             transition={{ duration: 0.35, ease: "easeOut" }}
             onClick={() => {
               if (!requireAuth("sharing")) return;
-              setCreateOpen(true);
+              openCreateTourFlow();
             }}
           >
             {t("appShell.makeMyInbite")}
@@ -732,9 +760,63 @@ export default function AppShell({
               exit={{ y: 48, opacity: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              <CreateTourScreen onClose={() => setCreateOpen(false)} />
+              <CreateTourScreen onClose={() => setCreateOpen(false)} shouldRestoreDraft={createRestoreDraft} />
             </motion.div>
           </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {createDraftPromptOpen ? (
+          <AppShellTabbarPadMotion
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              type="button"
+              aria-label="Close draft prompt"
+              className="absolute inset-0 bg-black/30"
+              onClick={() => setCreateDraftPromptOpen(false)}
+            />
+            <motion.div
+              className="relative z-10 w-full max-w-[360px] rounded-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_24px_60px_rgba(42,36,32,0.18)]"
+              initial={{ y: 18, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 12, opacity: 0, scale: 0.98 }}
+            >
+              <div className="text-[16px] font-semibold text-[#2C1A0E]">{t("createDraft.restoreTitle")}</div>
+              <p className="mt-2 text-[13px] leading-6 text-[#A0522D]/75">
+                {t("createDraft.restoreBody")}
+              </p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-2xl border border-[#EDD5C0] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#A0522D]"
+                  onClick={() => {
+                    clearCreateTourDraft(welcomeClerkUserId ?? "guest");
+                    setCreateRestoreDraft(false);
+                    setCreateDraftPromptOpen(false);
+                    setCreateOpen(true);
+                  }}
+                >
+                  {t("createDraft.restoreNo")}
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-2xl bg-[#A0522D] px-4 py-2.5 text-[13px] font-semibold text-white"
+                  onClick={() => {
+                    setCreateRestoreDraft(true);
+                    setCreateDraftPromptOpen(false);
+                    setCreateOpen(true);
+                  }}
+                >
+                  {t("createDraft.restoreYes")}
+                </button>
+              </div>
+            </motion.div>
+          </AppShellTabbarPadMotion>
         ) : null}
       </AnimatePresence>
 

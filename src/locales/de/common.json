@@ -293,6 +293,12 @@
   "wallet": {
     "recentActivity": "Letzte Aktivität"
   },
+  "createDraft": {
+    "restoreTitle": "Vorherigen Entwurf wiederherstellen?",
+    "restoreBody": "Mit Ja machst du dort weiter, wo du aufgehört hast. Mit Nein startest du neu.",
+    "restoreYes": "Ja",
+    "restoreNo": "Nein"
+  },
   "onboarding": {
     "tastesTitle": "Wähle deine aktuellen Vorlieben",
     "tastesSubtitle": "Sag uns, was dir gerade gefällt. Wir personalisieren Hosts und Einladungen danach.",

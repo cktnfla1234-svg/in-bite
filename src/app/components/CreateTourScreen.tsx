@@ -7,7 +7,7 @@ import { addHostedTour } from "@/lib/hostedTours";
 import { createInvite } from "@/lib/invites";
 import { addLocalInvite } from "@/lib/localInvites";
 import { BITE_COST_CREATE_INVITE } from "@/lib/bitePolicy";
-import { applyBiteDeltaServer, fetchProfileBitesBalance } from "@/lib/profile";
+import { applyBiteDeltaServer, fetchProfileBitesBalance, upsertClerkProfile } from "@/lib/profile";
 import { getWalletBalance, roundBiteDisplay, WALLET_BALANCE_SYNC } from "@/lib/wallet";
 import { type CurrencyCode } from "@/lib/currency";
 import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
@@ -22,9 +22,16 @@ import {
   itineraryFromTimelineRows,
   type InviteTimelineRow,
 } from "@/app/components/InviteJourneyTimelineEditor";
+import {
+  clearCreateTourDraft,
+  loadCreateTourDraft,
+  saveCreateTourDraft,
+  type CreateTourDraft,
+} from "@/lib/createTourDraft";
 
 type CreateTourScreenProps = {
   onClose: () => void;
+  shouldRestoreDraft?: boolean;
 };
 
 const INCLUDED_OPTIONS = [
@@ -48,7 +55,7 @@ const TASTE_TAG_OPTIONS = [
   "Live Music",
 ];
 
-export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
+export function CreateTourScreen({ onClose, shouldRestoreDraft = false }: CreateTourScreenProps) {
   const { t, i18n } = useTranslation("common");
   const uiLocale = normalizeAppLocale(i18n.language);
   const { getToken } = useAuth();
@@ -80,6 +87,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [confirmCreateOpen, setConfirmCreateOpen] = useState(false);
+  const hydratedFromDraftRef = useRef(false);
 
   const selectedCount = useMemo(() => Object.values(included).filter(Boolean).length, [included]);
   const baseLocation = useMemo(
@@ -93,6 +101,37 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     () => [...TASTE_TAG_OPTIONS, ...customTasteTags],
     [customTasteTags],
   );
+
+  const formatCreateInviteError = (err: unknown) => {
+    if (!(err instanceof Error)) {
+      const maybe = err as { message?: unknown; detail?: unknown; code?: unknown } | null;
+      const rawFromObject =
+        typeof maybe?.message === "string"
+          ? maybe.message
+          : typeof maybe?.detail === "string"
+            ? maybe.detail
+            : typeof maybe?.code === "string"
+              ? maybe.code
+              : "";
+      if (!rawFromObject) return "게시에 문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
+      const lower = rawFromObject.toLowerCase();
+      if (lower.includes("row-level security") || lower.includes("permission denied") || lower.includes("42501")) {
+        return "권한 설정(RLS) 문제로 게시에 실패했습니다. Supabase 정책을 확인해 주세요.";
+      }
+      return rawFromObject;
+    }
+    const raw = err.message || "";
+    const msg = raw.toLowerCase();
+    if (raw === "insufficient_balance") return "BITE 잔액이 부족합니다.";
+    if (raw === "missing_supabase_token") return "인증 정보를 확인할 수 없습니다. 다시 로그인 후 시도해 주세요.";
+    if (raw === "sign_in_required") return "로그인 후 초대장을 생성할 수 있습니다.";
+    if (msg.includes("profile missing")) return "프로필 동기화가 필요합니다. 잠시 후 다시 시도해 주세요.";
+    if (msg.includes("row-level security") || msg.includes("permission denied") || msg.includes("42501")) {
+      return "권한 설정(RLS) 문제로 게시에 실패했습니다. Supabase 정책을 확인해 주세요.";
+    }
+    if (msg.includes("jwt") || msg.includes("token")) return "인증이 만료되었습니다. 다시 로그인 후 시도해 주세요.";
+    return raw || "게시에 문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
+  };
 
   const toggleOption = (id: string) => {
     setIncluded((cur) => ({ ...cur, [id]: !cur[id] }));
@@ -111,6 +150,71 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     setTasteTags((cur) => (cur.includes(normalized) ? cur : [...cur, normalized]));
     setCustomTaste("");
   };
+
+  useEffect(() => {
+    if (hydratedFromDraftRef.current) return;
+    hydratedFromDraftRef.current = true;
+    if (!shouldRestoreDraft) return;
+    const draft = loadCreateTourDraft(user?.id);
+    if (!draft) return;
+    setTitle(draft.title);
+    setCountryCode(draft.countryCode || "KR");
+    setCityEn(draft.cityEn || "Seoul");
+    setLocationDetail(draft.locationDetail);
+    setDescription(draft.description);
+    setPrimaryPhoto(draft.primaryPhoto);
+    setTimeline(draft.timeline.length ? draft.timeline : [emptyInviteTimelineRow()]);
+    setStep(draft.step === 2 ? 2 : 1);
+    setTasteTags(draft.tasteTags);
+    setCustomTasteTags(draft.customTasteTags);
+    setIncluded(draft.included ?? {});
+    setPriceAmount(draft.priceAmount || 45000);
+    setHostCurrency((draft.hostCurrency as CurrencyCode) || "KRW");
+    setCapacity(draft.capacity || 2);
+    setMeetupAt(draft.meetupAt);
+    setMeetupTbd(Boolean(draft.meetupTbd));
+  }, [shouldRestoreDraft, user?.id]);
+
+  useEffect(() => {
+    const draft: CreateTourDraft = {
+      title,
+      countryCode,
+      cityEn,
+      locationDetail,
+      description,
+      primaryPhoto,
+      timeline,
+      step,
+      tasteTags,
+      customTasteTags,
+      included,
+      priceAmount,
+      hostCurrency,
+      capacity,
+      meetupAt,
+      meetupTbd,
+      updatedAt: new Date().toISOString(),
+    };
+    saveCreateTourDraft(user?.id, draft);
+  }, [
+    user?.id,
+    title,
+    countryCode,
+    cityEn,
+    locationDetail,
+    description,
+    primaryPhoto,
+    timeline,
+    step,
+    tasteTags,
+    customTasteTags,
+    included,
+    priceAmount,
+    hostCurrency,
+    capacity,
+    meetupAt,
+    meetupTbd,
+  ]);
 
   const handlePrimaryPhotoPick = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -225,6 +329,18 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         throw new Error("missing_supabase_token");
       }
 
+      // Ensure profile row exists before balance deduction fallback touches `profiles`.
+      await upsertClerkProfile(
+        {
+          id: user.id,
+          firstName: user.firstName ?? null,
+          lastName: user.lastName ?? null,
+          imageUrl: user.imageUrl,
+          primaryEmailAddress: { emailAddress: user.primaryEmailAddress?.emailAddress ?? "" },
+        },
+        token,
+      );
+
       // 1) Deduct 1 BITE on profiles (via atomic RPC).
       console.log("[CreateInvite] deducting BITE on server");
       await applyBiteDeltaServer(user.id, token, -BITE_COST_CREATE_INVITE, "create_invite");
@@ -282,6 +398,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         createdAt: new Date().toISOString(),
       });
 
+      clearCreateTourDraft(user.id);
       setConfirmCreateOpen(false);
       onClose();
       navigate("/explore");
@@ -303,15 +420,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         }
       }
 
-      let message = "게시 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
-      if (err instanceof Error && err.message === "insufficient_balance") {
-        message = "Not enough BITE energy to publish this invite.";
-      } else if (err instanceof Error && err.message === "missing_supabase_token") {
-        message = "인증 정보를 확인할 수 없습니다. 다시 로그인 후 시도해 주세요.";
-      } else if (err instanceof Error && err.message === "sign_in_required") {
-        message = "로그인 후 초대장을 생성할 수 있습니다.";
-      }
-      toast.error(message);
+      const message = formatCreateInviteError(err);
       setSaveError(message);
     } finally {
       setIsSaving(false);
@@ -618,6 +727,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
                   type="button"
                   disabled={isSaving}
                   onClick={() => {
+                    setConfirmCreateOpen(false);
                     void handleCreateInvite();
                   }}
                   className="flex-1 rounded-2xl bg-[#A0522D] px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
