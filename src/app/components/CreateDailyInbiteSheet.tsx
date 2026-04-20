@@ -233,7 +233,7 @@ export function CreateDailyInbiteSheet({ onClose }: CreateDailyInbiteSheetProps)
             </label>
           </div>
 
-          <div className="sticky bottom-0 z-10 -mx-5 border-t border-[#EDD5C0]/80 bg-[#FDFAF5]/98 px-5 pt-3 shadow-[0_-10px_30px_rgba(42,36,32,0.08)] backdrop-blur-sm max-sm:pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+5.75rem))] sm:pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))]">
+          <div className="sticky bottom-0 z-10 -mx-5 border-t border-[#EDD5C0]/80 bg-[#FDFAF5]/98 px-5 pt-3 shadow-[0_-10px_30px_rgba(42,36,32,0.08)] backdrop-blur-sm max-sm:pb-[max(1rem,calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)))] sm:pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+0.75rem))]">
             {error ? <p className="mb-3 text-[12px] text-[#B54545]">{error}</p> : null}
             <div className="flex gap-2">
               <button

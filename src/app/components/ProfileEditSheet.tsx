@@ -1,6 +1,7 @@
 ﻿import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 import { CountryCitySelect } from "./CountryCitySelect";
 import { getCountryNameEn } from "@/lib/locations/dataset";
 import { normalizeAppLocale } from "@/lib/i18n/appLocales";
@@ -271,10 +272,10 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div className="fixed inset-0 z-[70]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div className="fixed inset-0 z-[100]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
 
-          <motion.div
+          <AppShellTabbarPadMotion
             className="absolute inset-0 flex items-center justify-center p-3"
             initial={{ y: 18, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -475,12 +476,12 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
                 </form>
               </div>
             </div>
-          </motion.div>
+          </AppShellTabbarPadMotion>
 
           <AnimatePresence onExitComplete={clearPointers}>
             {cropSource && cropImageSize ? (
               <motion.div
-                className="fixed inset-0 z-[90] flex flex-col bg-[#FDFAF5]"
+                className="fixed inset-0 z-[100] flex flex-col bg-[#FDFAF5]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -564,7 +565,7 @@ export function ProfileEditSheet({ open, onClose, profile, onSave }: ProfileEdit
                   />
                 </div>
 
-                <div className="flex gap-4 px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-1">
+                <div className="flex gap-4 px-6 pb-[max(24px,calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)))] pt-1">
                   <button
                     type="button"
                     className="h-14 min-h-[52px] flex-1 rounded-2xl border-2 border-[#A0522D]/45 bg-white text-[15px] font-bold text-[#A0522D] shadow-sm"

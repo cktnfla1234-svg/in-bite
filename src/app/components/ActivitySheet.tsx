@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import type { AppNotification } from "@/lib/notifications";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 
 type ActivitySheetProps = {
   open: boolean;
@@ -14,7 +15,7 @@ export function ActivitySheet({ open, onClose, items, onSelect }: ActivitySheetP
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
+        <AppShellTabbarPadMotion
           className="fixed inset-0 z-[85] flex items-end justify-center sm:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -42,7 +43,7 @@ export function ActivitySheet({ open, onClose, items, onSelect }: ActivitySheetP
                 ✕
               </button>
             </div>
-            <div className="max-h-[min(70svh,520px)] overflow-y-auto px-3 py-2 pb-6">
+            <div className="max-h-[min(70svh,520px)] overflow-y-auto px-3 py-2 pb-3">
               {items.length === 0 ? (
                 <div className="px-4 py-10 text-center text-[13px] text-[#8C7663]">{t("activity.empty")}</div>
               ) : (
@@ -73,7 +74,7 @@ export function ActivitySheet({ open, onClose, items, onSelect }: ActivitySheetP
               )}
             </div>
           </motion.div>
-        </motion.div>
+        </AppShellTabbarPadMotion>
       ) : null}
     </AnimatePresence>
   );

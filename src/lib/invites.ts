@@ -133,3 +133,27 @@ export async function fetchPublicInvites(limit = 160): Promise<InviteRow[]> {
   }
   return (data ?? []) as InviteRow[];
 }
+
+/**
+ * Fetches invites authored by a specific Clerk user.
+ * Requires an authenticated JWT and SELECT policy on `invites`.
+ */
+export async function fetchInvitesByClerkId(token: string, clerkId: string, limit = 40): Promise<InviteRow[]> {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
+  const targetClerkId = clerkId.trim();
+  if (!targetClerkId) return [];
+
+  const { data, error } = await supabase
+    .from("invites")
+    .select(PUBLIC_INVITE_SELECT)
+    .eq("clerk_id", targetClerkId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn("fetchInvitesByClerkId", error);
+    return [];
+  }
+  return (data ?? []) as InviteRow[];
+}

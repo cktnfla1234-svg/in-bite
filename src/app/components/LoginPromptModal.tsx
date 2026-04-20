@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 
 export type LoginPromptKind = "chat" | "booking" | "sharing";
 
@@ -24,7 +25,7 @@ export function LoginPromptModal({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
+        <AppShellTabbarPadMotion
           className="fixed inset-0 z-[80] flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -72,7 +73,7 @@ export function LoginPromptModal({
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </AppShellTabbarPadMotion>
       ) : null}
     </AnimatePresence>
   );

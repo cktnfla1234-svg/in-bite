@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Trans, useTranslation } from "react-i18next";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 import { CookieLogo } from "./ui/CookieLogo";
 
 type PostSignupWelcomeModalProps = {
@@ -18,7 +19,7 @@ export function PostSignupWelcomeModal({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
+        <AppShellTabbarPadMotion
           className="fixed inset-0 z-[95] flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -85,7 +86,7 @@ export function PostSignupWelcomeModal({
 
             <p className="mt-5 text-center text-[11px] leading-5 text-[#A0522D]/70">{t("postSignupWelcome.footer")}</p>
           </motion.div>
-        </motion.div>
+        </AppShellTabbarPadMotion>
       ) : null}
     </AnimatePresence>
   );

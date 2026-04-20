@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatFiat, type CurrencyCode } from "@/lib/currency";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
@@ -85,8 +86,8 @@ export function ChatPaymentSheet({ open, clientSecret, amount, currency, onClose
       transition={{ duration: 0.2 }}
     >
       <button type="button" className="absolute inset-0 bg-black/30" aria-label={t("chat.paymentCancel")} onClick={onClose} />
-      <motion.div
-        className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 pb-8 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
+      <AppShellTabbarPadMotion
+        className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
@@ -102,7 +103,7 @@ export function ChatPaymentSheet({ open, clientSecret, amount, currency, onClose
             <PaymentForm onClose={onClose} onPaid={onPaid} />
           </Elements>
         </div>
-      </motion.div>
+      </AppShellTabbarPadMotion>
     </motion.div>
   );
 }

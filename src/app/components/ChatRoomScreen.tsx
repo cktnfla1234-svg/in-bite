@@ -6,6 +6,7 @@ import type { ChatMessageRecord } from "@/lib/chat";
 import { getProfileAvatar } from "@/lib/profileAvatarStore";
 import { BITE_BUNDLE_PRICE_KRW } from "@/lib/bitePolicy";
 import { formatFiat, type CurrencyCode } from "@/lib/currency";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 import { ChatPaymentSheet } from "./ChatPaymentSheet";
 
 type ChatRoomScreenProps = {
@@ -312,7 +313,7 @@ export function ChatRoomScreen({
               aria-label={t("chat.closeActions")}
               onClick={() => setMenuOpen(false)}
             />
-            <motion.div
+            <AppShellTabbarPadMotion
               className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_-18px_55px_rgba(0,0,0,0.14)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
@@ -385,7 +386,7 @@ export function ChatRoomScreen({
                   {type === "group" ? t("chat.menuCopyGroupInviteLink") : t("chat.menuCopyChatLink")}
                 </button>
               ) : null}
-            </motion.div>
+            </AppShellTabbarPadMotion>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -406,8 +407,8 @@ export function ChatRoomScreen({
               aria-label={t("chat.paymentCancel")}
               onClick={() => setPaymentPickerOpen(false)}
             />
-            <motion.div
-              className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
+            <AppShellTabbarPadMotion
+              className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -475,7 +476,7 @@ export function ChatRoomScreen({
               />
               <div className="mt-2 text-[12px] text-[#A0522D]/70">{t("chat.paymentAmountLabel", { amount: paymentAmountLabel })}</div>
               {paymentError ? <p className="mt-2 text-[12px] text-red-600">{paymentError}</p> : null}
-            </motion.div>
+            </AppShellTabbarPadMotion>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -497,7 +498,7 @@ export function ChatRoomScreen({
         {giftSheetOpen ? (
           <motion.div
             key="gift-sheet"
-            className="fixed inset-0 z-[72]"
+            className="fixed inset-0 z-[100]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -509,8 +510,8 @@ export function ChatRoomScreen({
               aria-label={t("chat.giftCancel")}
               onClick={() => setGiftSheetOpen(false)}
             />
-            <motion.div
-              className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 pb-8 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
+            <AppShellTabbarPadMotion
+              className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -565,7 +566,7 @@ export function ChatRoomScreen({
                   {t("chat.giftSend")}
                 </button>
               </div>
-            </motion.div>
+            </AppShellTabbarPadMotion>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -574,7 +575,7 @@ export function ChatRoomScreen({
         {inviteFormOpen ? (
           <motion.div
             key="invite-form"
-            className="fixed inset-0 z-[70]"
+            className="fixed inset-0 z-[100]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -586,8 +587,8 @@ export function ChatRoomScreen({
               aria-label={t("chat.inviteCancel")}
               onClick={() => setInviteFormOpen(false)}
             />
-            <motion.div
-              className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 pb-8 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
+            <AppShellTabbarPadMotion
+              className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_-18px_55px_rgba(0,0,0,0.16)]"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -623,7 +624,7 @@ export function ChatRoomScreen({
                   {t("chat.inviteSend")}
                 </button>
               </div>
-            </motion.div>
+            </AppShellTabbarPadMotion>
           </motion.div>
         ) : null}
       </AnimatePresence>

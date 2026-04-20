@@ -9,11 +9,28 @@ type ExperienceDetailProps = {
   experience: Experience;
   onBack: () => void;
   onSayHi?: () => void;
+  onEditInvitation?: () => void;
+  onShareInvitation?: () => void;
+  onBookExperience?: () => void;
+  bookDisabled?: boolean;
+  bookDisabledMessage?: string;
+  isOwnInvite?: boolean;
   /** Opens global profile preview (host row). */
   onOpenHostProfile?: () => void;
 };
 
-export function ExperienceDetail({ experience, onBack, onSayHi, onOpenHostProfile }: ExperienceDetailProps) {
+export function ExperienceDetail({
+  experience,
+  onBack,
+  onSayHi,
+  onEditInvitation,
+  onShareInvitation,
+  onBookExperience,
+  bookDisabled = false,
+  bookDisabledMessage,
+  isOwnInvite = false,
+  onOpenHostProfile,
+}: ExperienceDetailProps) {
   const { preferredCurrency } = usePreferredCurrency();
   return (
     <main className="invite-experience-detail min-h-full w-full bg-[#FDFAF5] pb-28">
@@ -83,14 +100,24 @@ export function ExperienceDetail({ experience, onBack, onSayHi, onOpenHostProfil
                 >
                   {experience.hostName}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onSayHi?.()}
-                  className="font-brand-display inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-3 py-1 text-[12px] font-semibold text-[#A0522D] shadow-none transition hover:bg-[#A0522D]/5"
-                >
-                  <MessageCircle className="h-3.5 w-3.5 opacity-80" strokeWidth={2} />
-                  Say Hi
-                </button>
+                {isOwnInvite ? (
+                  <button
+                    type="button"
+                    onClick={() => onEditInvitation?.()}
+                    className="font-brand-display inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-3 py-1 text-[12px] font-semibold text-[#A0522D] shadow-none transition hover:bg-[#A0522D]/5"
+                  >
+                    Edit Invitation (수정하기)
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onSayHi?.()}
+                    className="font-brand-display inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-3 py-1 text-[12px] font-semibold text-[#A0522D] shadow-none transition hover:bg-[#A0522D]/5"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 opacity-80" strokeWidth={2} />
+                    Say Hi
+                  </button>
+                )}
               </div>
               <div className="font-body-ko mt-1 flex items-center gap-1 text-[12px] text-[#7A5C4E]">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-[#A0522D]/55" strokeWidth={2} />
@@ -213,12 +240,30 @@ export function ExperienceDetail({ experience, onBack, onSayHi, onOpenHostProfil
           </div>
         </section>
 
-        <button
-          type="button"
-          className="font-brand-display mt-10 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F]"
-        >
-          Book This Experience
-        </button>
+        {isOwnInvite ? (
+          <>
+            <p className="font-body-ko mt-10 text-center text-[12px] text-[#7A5C4E]">
+              본인의 여행은 예약할 수 없습니다. 대신 친구들에게 공유해 보세요!
+            </p>
+            <button
+              type="button"
+              onClick={() => onShareInvitation?.()}
+              className="font-brand-display mt-3 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F]"
+            >
+              Share with Friends (친구에게 공유하기)
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onBookExperience?.()}
+            disabled={bookDisabled}
+            title={bookDisabled && bookDisabledMessage ? bookDisabledMessage : undefined}
+            className="font-brand-display mt-10 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#A0522D]"
+          >
+            {bookDisabled ? "예약 불가" : "Book This Experience"}
+          </button>
+        )}
       </div>
     </main>
   );

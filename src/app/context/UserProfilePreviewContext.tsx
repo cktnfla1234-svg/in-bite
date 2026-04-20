@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { AppShellTabbarPadMotion } from "@/app/components/AppShellTabbarSafeArea";
 import { fetchPublicProfileByClerkId, type PublicProfileSnapshot } from "@/lib/publicProfile";
 import { setProfileAvatar } from "@/lib/profileAvatarStore";
+import { fetchInvitesByClerkId, type InviteRow } from "@/lib/invites";
 
 export type OpenUserProfileArgs = {
   clerkId: string;
@@ -48,7 +50,9 @@ export function UserProfilePreviewProvider({
   const [fallbackName, setFallbackName] = useState("");
   const [fallbackImage, setFallbackImage] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [snapshot, setSnapshot] = useState<PublicProfileSnapshot | null>(null);
+  const [userInvites, setUserInvites] = useState<InviteRow[]>([]);
   /** True when the last open attempted Supabase with a JWT (so a missing snapshot may be an RPC/DB issue). */
   const [lastFetchHadToken, setLastFetchHadToken] = useState(false);
 
@@ -56,8 +60,10 @@ export function UserProfilePreviewProvider({
     setOpen(false);
     setClerkId(null);
     setSnapshot(null);
+    setUserInvites([]);
     setLastFetchHadToken(false);
     setLoading(false);
+    setPostsLoading(false);
   }, []);
 
   const openUserProfile = useCallback(
@@ -68,25 +74,34 @@ export function UserProfilePreviewProvider({
       setFallbackName(args.fallbackDisplayName?.trim() || "");
       setFallbackImage(args.fallbackImageUrl?.trim() || undefined);
       setSnapshot(null);
+      setUserInvites([]);
       setLastFetchHadToken(false);
       setOpen(true);
       setLoading(true);
+      setPostsLoading(true);
       void (async () => {
         try {
           const token = (await getSupabaseToken?.()) ?? null;
           setLastFetchHadToken(Boolean(token));
           if (!token) {
             setSnapshot(null);
+            setUserInvites([]);
             return;
           }
-          const row = await fetchPublicProfileByClerkId(id, token);
+          const [row, invites] = await Promise.all([
+            fetchPublicProfileByClerkId(id, token),
+            fetchInvitesByClerkId(token, id, 18),
+          ]);
           setSnapshot(row);
+          setUserInvites(invites);
           const fresh = row?.image_url?.trim();
           if (fresh) setProfileAvatar(id, fresh);
         } catch {
           setSnapshot(null);
+          setUserInvites([]);
         } finally {
           setLoading(false);
+          setPostsLoading(false);
         }
       })();
     },
@@ -150,7 +165,7 @@ export function UserProfilePreviewProvider({
               className="absolute inset-0 bg-black/30"
               onClick={closeUserProfile}
             />
-            <motion.div
+            <AppShellTabbarPadMotion
               role="dialog"
               aria-modal="true"
               aria-labelledby="user-profile-preview-title"
@@ -233,6 +248,41 @@ export function UserProfilePreviewProvider({
                         </div>
                       </div>
                     ) : null}
+                    <div className="pt-2">
+                      <div className="text-[12px] font-semibold text-[#A0522D]/85">
+                        {t("profilePreview.posts")}
+                      </div>
+                      {postsLoading ? (
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {Array.from({ length: 6 }).map((_, idx) => (
+                            <div
+                              key={`invite-skeleton-${idx}`}
+                              className="h-24 animate-pulse rounded-[14px] border border-[#E5D8CC] bg-[#F4E7DB]"
+                            />
+                          ))}
+                        </div>
+                      ) : userInvites.length > 0 ? (
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {userInvites.map((invite) => (
+                            <div
+                              key={invite.id}
+                              className="overflow-hidden rounded-[14px] border border-[#E5D8CC] bg-white"
+                            >
+                              {invite.primary_photo_url ? (
+                                <img src={invite.primary_photo_url} alt={invite.title} className="h-24 w-full object-cover" />
+                              ) : (
+                                <div className="h-24 w-full bg-[#F4E7DB]" />
+                              )}
+                              <div className="px-2 py-1.5">
+                                <div className="truncate text-[11px] font-medium text-[#5C3318]">{invite.title}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-[12px] text-[#A0522D]/60">{t("profilePreview.noPosts")}</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -243,7 +293,7 @@ export function UserProfilePreviewProvider({
               >
                 {t("common.close")}
               </button>
-            </motion.div>
+            </AppShellTabbarPadMotion>
           </motion.div>
         ) : null}
       </AnimatePresence>

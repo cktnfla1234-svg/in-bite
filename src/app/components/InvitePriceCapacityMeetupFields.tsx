@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   SELECTABLE_CURRENCIES,
@@ -6,13 +6,6 @@ import {
   fractionDigitsFor,
   type CurrencyCode,
 } from "@/lib/currency";
-
-/** Whole-number currencies (e.g. KRW): slider 0–300,000 in host units. */
-const SLIDER_MAX_WHOLE = 300_000;
-const SLIDER_STEP_WHOLE = 1_000;
-/** Decimal currencies: separate cap so the control stays usable. */
-const SLIDER_MAX_DECIMAL = 3_000;
-const SLIDER_STEP_DECIMAL = 5;
 
 const CAPACITY_MIN = 1;
 const CAPACITY_MAX = 20;
@@ -63,19 +56,12 @@ export function InvitePriceCapacityMeetupFields({
 }: InvitePriceCapacityMeetupFieldsProps) {
   const { t } = useTranslation("common");
 
-  const { sliderMax, sliderStep } = useMemo(() => {
+  const { inputStep, inputMode } = useMemo(() => {
     if (fractionDigitsFor(hostCurrency) === 0) {
-      return { sliderMax: SLIDER_MAX_WHOLE, sliderStep: SLIDER_STEP_WHOLE };
+      return { inputStep: "1", inputMode: "numeric" as const };
     }
-    return { sliderMax: SLIDER_MAX_DECIMAL, sliderStep: SLIDER_STEP_DECIMAL };
+    return { inputStep: "0.01", inputMode: "decimal" as const };
   }, [hostCurrency]);
-
-  useEffect(() => {
-    const capped = Math.min(Math.max(0, priceAmount), sliderMax);
-    const snapped = Math.round(capped / sliderStep) * sliderStep;
-    const next = Math.min(Math.max(0, snapped), sliderMax);
-    if (next !== priceAmount) onPriceAmountChange(next);
-  }, [hostCurrency, sliderMax, sliderStep, priceAmount, onPriceAmountChange]);
 
   const safeCapacity = Math.min(
     CAPACITY_MAX,
@@ -109,28 +95,23 @@ export function InvitePriceCapacityMeetupFields({
               {formatFiat(priceAmount, hostCurrency)}
             </div>
           </div>
-          <label className="mt-4 block" htmlFor="invite-price-slider-shared">
-            <span className="sr-only">{t("inviteFields.tourPriceFiat")}</span>
+          <label className="mt-4 block text-[12px] font-semibold text-[#A0522D]/70" htmlFor="invite-price-input-shared">
+            {t("inviteFields.tourPriceFiat")}
             <input
-              id="invite-price-slider-shared"
-              type="range"
+              id="invite-price-input-shared"
+              type="number"
+              inputMode={inputMode}
               min={0}
-              max={sliderMax}
-              step={sliderStep}
-              value={Math.min(priceAmount, sliderMax)}
+              step={inputStep}
+              value={Number.isFinite(priceAmount) ? priceAmount : 0}
               onChange={(e) => {
                 const raw = Number(e.target.value);
                 if (!Number.isFinite(raw)) return;
-                const snapped = Math.round(raw / sliderStep) * sliderStep;
-                onPriceAmountChange(Math.min(Math.max(0, snapped), sliderMax));
+                onPriceAmountChange(Math.max(0, raw));
               }}
-              className="mt-3 h-3 w-full cursor-pointer accent-[#A0522D]"
+              className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
             />
           </label>
-          <div className="mt-2 flex items-center justify-between text-[10px] font-medium text-[#A0522D]/50 tabular-nums">
-            <span>{formatFiat(0, hostCurrency)}</span>
-            <span>{formatFiat(sliderMax, hostCurrency)}</span>
-          </div>
         </div>
       </div>
 

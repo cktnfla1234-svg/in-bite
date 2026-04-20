@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { toast } from "sonner";
 import { addHostedTour } from "@/lib/hostedTours";
 import { createInvite } from "@/lib/invites";
 import { addLocalInvite } from "@/lib/localInvites";
@@ -12,6 +13,7 @@ import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
 import { CountryCitySelect } from "@/app/components/CountryCitySelect";
 import { buildStoredLocationEnglish } from "@/lib/locations/dataset";
 import { normalizeAppLocale } from "@/lib/i18n/appLocales";
+import { AppShellTabbarPad } from "@/app/components/AppShellTabbarSafeArea";
 import { InvitePriceCapacityMeetupFields } from "@/app/components/InvitePriceCapacityMeetupFields";
 import {
   InviteJourneyTimelineEditor,
@@ -138,6 +140,12 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
 
   const handleNextStep = () => {
     if (!hasBasicInfo) {
+      const missing: string[] = [];
+      if (!title.trim()) missing.push("title");
+      if (!countryCode.trim() || !cityEn.trim()) missing.push("location");
+      if (!primaryPhoto) missing.push("primary photo");
+      if (!description.trim()) missing.push("description");
+      toast.error(`Please complete required fields: ${missing.join(", ")}`);
       setBasicError("Please complete title, location, primary photo, and description first.");
       return;
     }
@@ -146,14 +154,28 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   };
 
   const handleCreateInvite = async () => {
+    console.log("[CreateInvite] Upload button clicked");
     if (!hasBasicInfo) {
+      const missing: string[] = [];
+      if (!title.trim()) missing.push("title");
+      if (!countryCode.trim() || !cityEn.trim()) missing.push("location");
+      if (!primaryPhoto) missing.push("primary photo");
+      if (!description.trim()) missing.push("description");
+      console.warn("[CreateInvite] blocked: missing required fields", { missing });
+      toast.error(`Please complete required fields: ${missing.join(", ")}`);
       setStep(1);
       setBasicError("Please complete title, location, primary photo, and description first.");
       return;
     }
     setSaveError("");
-    if (!validateTimeline()) return;
+    if (!validateTimeline()) {
+      console.warn("[CreateInvite] blocked: invalid timeline");
+      toast.error(t("inviteFields.timelineErrorRow"));
+      return;
+    }
     if (!meetupTbd && !meetupAt.trim()) {
+      console.warn("[CreateInvite] blocked: meetup datetime missing");
+      toast.error(t("inviteFields.meetupRequiredWhenNotTbd"));
       setSaveError(t("inviteFields.meetupRequiredWhenNotTbd"));
       return;
     }
@@ -161,6 +183,10 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     if (user?.id) {
       const bal = getWalletBalance(user.id);
       if (bal < BITE_COST_CREATE_INVITE) {
+        console.warn("[CreateInvite] blocked: insufficient BITE balance", { balance: bal });
+        toast.error(
+          `You need at least ${BITE_COST_CREATE_INVITE} BITE energy. Current balance: ${roundBiteDisplay(bal)}`,
+        );
         setSaveError(
           `You need at least ${BITE_COST_CREATE_INVITE} BITE energy to publish an invite. (Current balance: ${roundBiteDisplay(bal)})`,
         );
@@ -180,10 +206,14 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     let token: string | null = null;
     if (user?.id) {
       try {
+        console.log("[CreateInvite] requesting Supabase token for BITE deduction");
         token = (await getToken({ template: "supabase" })) ?? null;
         if (token) {
+          console.log("[CreateInvite] deducting BITE on server");
           await applyBiteDeltaServer(user.id, token, -BITE_COST_CREATE_INVITE, "create_invite");
+          console.log("[CreateInvite] BITE deduction succeeded");
         } else {
+          console.log("[CreateInvite] no token, dispatching local BITE deduction event");
           window.dispatchEvent(
             new CustomEvent("inbite-apply-bite", {
               detail: { clerkId: user.id, delta: -BITE_COST_CREATE_INVITE, kind: "create_invite" },
@@ -192,9 +222,13 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         }
       } catch (e) {
         if (e instanceof Error && e.message === "insufficient_balance") {
+          console.error("[CreateInvite] BITE deduction failed: insufficient balance");
+          toast.error("Not enough BITE energy to publish this invite.");
           setSaveError("Not enough BITE energy to publish this invite.");
           return;
         }
+        console.error("[CreateInvite] BITE deduction failed", e);
+        toast.error("We couldn’t deduct BITE energy. Check your connection and try again.");
         setSaveError("We couldn’t deduct BITE energy. Check your connection and try again.");
         return;
       }
@@ -230,6 +264,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
     setIsSaving(true);
     try {
       if (user?.id && token) {
+        console.log("[CreateInvite] before Supabase createInvite call");
         await createInvite(
           {
             clerkId: user.id,
@@ -247,6 +282,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
           },
           token,
         );
+        console.log("[CreateInvite] after Supabase createInvite call");
       }
 
       addHostedTour({
@@ -259,6 +295,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       });
     } catch (err) {
       console.warn("Invite sync to Supabase failed, kept locally.", err);
+      console.error("[CreateInvite] failed during remote sync", err);
       if (user?.id) {
         try {
           const supabaseToken = token ?? (await getToken({ template: "supabase" }));
@@ -279,7 +316,9 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       }
     } finally {
       setIsSaving(false);
+      console.log("[CreateInvite] submit flow finished");
     }
+    console.log("[CreateInvite] closing create modal");
     onClose();
   };
 
@@ -329,7 +368,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       ref={containerRef}
       className="mx-auto max-h-[90svh] w-full max-w-[560px] overflow-y-auto rounded-t-[28px] bg-[#FDFAF5] shadow-[0_-20px_70px_rgba(0,0,0,0.25)]"
     >
-      <div className="px-5 pt-4 max-sm:pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem+1.25rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+      <div className="px-5 pt-4 max-sm:pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+1.25rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -556,7 +595,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         </div>
 
         {confirmCreateOpen ? (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <AppShellTabbarPad className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <button
               type="button"
               aria-label="Close create confirmation"
@@ -591,7 +630,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
                 </button>
               </div>
             </div>
-          </div>
+          </AppShellTabbarPad>
         ) : null}
       </div>
     </div>

@@ -270,6 +270,8 @@
     "fallbackName": "Mitglied",
     "loadError": "Profil konnte nicht geladen werden. Führe supabase_public_profile_rpc.sql in Supabase aus und melde dich erneut an.",
     "serverExtrasHint": "Stadt, Bio und weitere gespeicherte Felder erscheinen hier, nachdem du supabase_public_profile_rpc.sql in Supabase ausgeführt hast (ggf. erneut anmelden).",
+    "posts": "Beiträge",
+    "noPosts": "Noch keine Beiträge.",
     "city": "Ort",
     "mbti": "MBTI",
     "hobbies": "Interessen",

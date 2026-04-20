@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
+import { AppShellTabbarPad } from "./AppShellTabbarSafeArea";
 import { ProfileEditSheet, type EditableProfile } from "./ProfileEditSheet";
 import { WalletOverlay } from "./WalletOverlay";
 import {
@@ -14,6 +15,7 @@ import { compressDataUrlList } from "@/lib/imageCompress";
 import { getWalletBalance, roundBiteDisplay, WALLET_BALANCE_SYNC } from "@/lib/wallet";
 import { hasCreatedHostedTour } from "@/lib/hostedTours";
 import { useAuth, useClerk, useUser } from "@clerk/clerk-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { GoogleLogo, KakaoLogo, NaverLogo } from "./ui/SocialLogos";
 import { GOOGLE_OAUTH_STRATEGY, KAKAO_OAUTH_STRATEGY, NAVER_OAUTH_STRATEGY } from "@/lib/authStrategies";
 import {
@@ -61,6 +63,8 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   const { t, i18n } = useTranslation("common");
   const uiLocale = normalizeAppLocale(i18n.language);
   const { user } = useUser();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { getToken } = useAuth();
   const { preferredCurrency, persistPreferredCurrency } = usePreferredCurrency();
   const [currencyBusy, setCurrencyBusy] = useState(false);
@@ -88,6 +92,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   const [editingTimeline, setEditingTimeline] = useState<InviteTimelineRow[]>([]);
   const [editingTimelineError, setEditingTimelineError] = useState("");
   const [editingInviteSaving, setEditingInviteSaving] = useState(false);
+  const consumedRouteEditInviteIdRef = useRef<string | null>(null);
   const lastMergedServerProfileUserIdRef = useRef<string | null>(null);
   const [profileSyncTick, setProfileSyncTick] = useState(0);
 
@@ -495,6 +500,19 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
     setEditingTimeline(inviteTimelineRowsFromItinerary(invite.itinerary));
     setEditingTimelineError("");
   };
+
+  useEffect(() => {
+    const requestedEditInviteId = (
+      location.state as { editInviteId?: string } | null
+    )?.editInviteId?.trim();
+    if (!requestedEditInviteId) return;
+    if (consumedRouteEditInviteIdRef.current === requestedEditInviteId) return;
+    const targetInvite = inviteeHistory.find((invite) => invite.id === requestedEditInviteId);
+    if (!targetInvite) return;
+    consumedRouteEditInviteIdRef.current = requestedEditInviteId;
+    startEditInvite(targetInvite);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [inviteeHistory, location.pathname, location.state, navigate]);
 
   const saveEditedInvite = async () => {
     if (!editingInviteId) return;
@@ -925,7 +943,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
       />
 
       {walletOpen && user?.id ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-3">
+        <AppShellTabbarPad className="fixed inset-0 z-[80] flex items-center justify-center p-3">
           <div
             className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={() => setWalletOpen(false)}
@@ -949,12 +967,12 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               }}
             />
           </div>
-        </div>
+        </AppShellTabbarPad>
       ) : null}
 
       {editingInviteId ? (
-        <div className="fixed inset-0 z-[85] bg-[#FDFAF5]">
-          <div className="h-full overflow-y-auto px-5 pb-8 pt-5">
+        <div className="fixed inset-0 z-[100] bg-[#FDFAF5]">
+          <AppShellTabbarPad className="h-full overflow-y-auto px-5 pt-5">
             <div className="mx-auto w-full max-w-[860px]">
             <div className="text-[24px] font-semibold text-[#A0522D]">{t("profile.editInvite")}</div>
             <input
@@ -1039,7 +1057,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
               </button>
             </div>
             </div>
-          </div>
+          </AppShellTabbarPad>
         </div>
       ) : null}
     </main>

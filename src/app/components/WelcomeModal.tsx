@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useClerk, useSignIn, useSignUp } from "@clerk/clerk-react";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 import { CookieLogo } from "./ui/CookieLogo";
 import { GoogleLogo, KakaoLogo, NaverLogo } from "./ui/SocialLogos";
 import { GOOGLE_OAUTH_STRATEGY, KAKAO_OAUTH_STRATEGY, NAVER_OAUTH_STRATEGY } from "@/lib/authStrategies";
@@ -392,7 +393,7 @@ export function WelcomeModal({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
+        <AppShellTabbarPadMotion
           className="fixed inset-0 z-[55] flex items-center justify-center p-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -464,7 +465,7 @@ export function WelcomeModal({
               </>
             )}
           </motion.div>
-        </motion.div>
+        </AppShellTabbarPadMotion>
       ) : null}
     </AnimatePresence>
   );

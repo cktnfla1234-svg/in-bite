@@ -20,9 +20,18 @@ import { PostSignupWelcomeModal } from "@/app/components/PostSignupWelcomeModal"
 import { grantWelcomeReward, hasWelcomeRewardBeenGranted } from "@/lib/wallet";
 import { PreferredCurrencyProvider } from "@/lib/PreferredCurrencyContext";
 import { UserProfilePreviewProvider } from "@/app/context/UserProfilePreviewContext";
-import { createGroupChatRoom, removeSyntheticChatRooms, startSayHiChat, syncGroupChatRoomToSupabase } from "@/lib/chat";
+import {
+  createGroupChatRoom,
+  listRoomMessages,
+  removeSyntheticChatRooms,
+  sendChatMessage,
+  startSayHiChat,
+  syncChatMessageToSupabase,
+  syncGroupChatRoomToSupabase,
+} from "@/lib/chat";
 import type { Experience } from "@/data/experiences";
 import { ActivitySheet } from "@/app/components/ActivitySheet";
+import { AppShellTabbarPadMotion } from "@/app/components/AppShellTabbarSafeArea";
 import type { AppNotification } from "@/lib/notifications";
 import {
   hasUnreadNotifications,
@@ -162,6 +171,64 @@ export default function AppShell({
         locale,
         accessToken: accessToken ?? undefined,
       });
+      setChatLaunch({ chatId: roomId, nonce: Date.now() });
+      setActiveTab("chat");
+      navigate(`/chat/${encodeURIComponent(roomId)}`);
+    } finally {
+      setIsConnectingChat(false);
+    }
+  };
+
+  const openBookingChat = async (experience: Experience) => {
+    if (!requireAuth("booking")) return;
+    const hostId = experience.hostClerkId?.trim();
+    if (!hostId) return;
+    if (hostId === (welcomeClerkUserId ?? "").trim()) {
+      toast.error("본인의 초대장은 예약할 수 없습니다.");
+      return;
+    }
+
+    const meId = welcomeClerkUserId ?? "guest";
+    const meName = "Traveler";
+    const locale = typeof navigator !== "undefined" ? navigator.language : "en";
+    const bookingIntro = `안녕하세요! ${experience.title} 일정에 관심이 있어서 연락드렸어요.`;
+    setIsConnectingChat(true);
+    try {
+      const accessToken = getSupabaseToken ? await getSupabaseToken() : null;
+      const { roomId } = await startSayHiChat({
+        meId,
+        meName,
+        hostId,
+        hostName: experience.hostName,
+        locale,
+        accessToken: accessToken ?? undefined,
+      });
+
+      const roomMessages = listRoomMessages(roomId);
+      const hasSameIntro = roomMessages.some((message) => message.senderId === meId && message.content === bookingIntro);
+      if (!hasSameIntro) {
+        const msg = sendChatMessage({
+          roomId,
+          senderId: meId,
+          receiverId: hostId,
+          content: bookingIntro,
+          kind: "text",
+        });
+        if (accessToken) {
+          await syncChatMessageToSupabase({
+            roomId,
+            senderId: meId,
+            receiverId: hostId,
+            content: bookingIntro,
+            accessToken,
+            messageId: msg.id,
+            kind: "text",
+            createdAtISO: msg.createdAt,
+            participantClerkIds: [meId, hostId],
+          });
+        }
+      }
+
       setChatLaunch({ chatId: roomId, nonce: Date.now() });
       setActiveTab("chat");
       navigate(`/chat/${encodeURIComponent(roomId)}`);
@@ -426,6 +493,8 @@ export default function AppShell({
 
   const tabPanelClass = (tab: Tab) =>
     activeTab === tab ? "block w-full min-h-0 flex-1 flex flex-col" : "hidden";
+  const isCreateModalOpen = createOpen || createDailyInbiteOpen;
+  const showFloatingActionButton = activeTab !== "chat" && !dailyBiteEditModalOpen && !isCreateModalOpen;
 
   return (
     <PreferredCurrencyProvider>
@@ -474,6 +543,7 @@ export default function AppShell({
               onCardClick={handleCardClick}
               onRequireAuth={(kind) => requireAuth(kind)}
               onSayHi={(experience: Experience) => void openSayHiChat(`host:${experience.id}`, experience.hostName)}
+              onBookExperience={(experience: Experience) => void openBookingChat(experience)}
               onSayHiHost={({ hostId, hostName }) => void openSayHiChat(hostId, hostName)}
               onInviteCompanion={() => {
                 if (!requireAuth("chat")) return;
@@ -543,19 +613,29 @@ export default function AppShell({
         }}
       />
 
-      {activeTab !== "chat" && !dailyBiteEditModalOpen ? (
-        <FloatingActionButton
-          autoInvitationTooltip={activeTab === "explore" && exploreSection === "invitations"}
-          onClick={() => {
-            if (!requireAuth("sharing")) return;
-            if (activeTab === "explore" && exploreSection === "dailyBites") {
-              setCreateDailyInbiteOpen(true);
-              return;
-            }
-            setCreateOpen(true);
-          }}
-        />
-      ) : null}
+      <AnimatePresence>
+        {showFloatingActionButton ? (
+          <motion.div
+            key="app-fab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            <FloatingActionButton
+              autoInvitationTooltip={activeTab === "explore" && exploreSection === "invitations"}
+              onClick={() => {
+                if (!requireAuth("sharing")) return;
+                if (activeTab === "explore" && exploreSection === "dailyBites") {
+                  setCreateDailyInbiteOpen(true);
+                  return;
+                }
+                setCreateOpen(true);
+              }}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {activeTab === "home" && showHomeQuickAction ? (
@@ -578,7 +658,7 @@ export default function AppShell({
 
       <AnimatePresence>
         {isConnectingChat ? (
-          <motion.div
+          <AppShellTabbarPadMotion
             className="fixed inset-0 z-[72] flex items-center justify-center bg-[#FFFBF5]/85 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -592,7 +672,7 @@ export default function AppShell({
                 <div className="h-3 w-2/3 animate-pulse rounded-full bg-[#EBDCCE]" />
               </div>
             </div>
-          </motion.div>
+          </AppShellTabbarPadMotion>
         ) : null}
       </AnimatePresence>
 

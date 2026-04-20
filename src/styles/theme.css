@@ -55,6 +55,14 @@ html:lang(ko) .companion-invite-card {
   font-family: var(--font-ko-rounded);
 }
 
+/**
+ * Bottom padding for modals / bottom sheets above AppShell `BottomNav` (z-[94]) + iOS home indicator.
+ * Prefer `AppShellTabbarPad` / `AppShellTabbarPadMotion` from `src/app/components/AppShellTabbarSafeArea.tsx`.
+ */
+.app-pad-bottom-tabbar {
+  padding-bottom: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+}
+
 /* Hide scrollbars globally for horizontal overflows */
 .scrollbar-none::-webkit-scrollbar {
   display: none;

@@ -34,6 +34,7 @@ import {
   subscribeProfileAvatarRealtime,
   subscribeProfileAvatarSync,
 } from "@/lib/profileAvatarStore";
+import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 import type { LoginPromptKind } from "./LoginPromptModal";
 import { FiatPriceBadge } from "./FiatPriceBadge";
 import { BITE_REWARD_COMMENT } from "@/lib/bitePolicy";
@@ -69,6 +70,7 @@ type ExploreScreenProps = {
   onRequireAuth?: (kind: LoginPromptKind) => boolean;
   onInviteCompanion?: () => void;
   onSayHi?: (experience: Experience) => void;
+  onBookExperience?: (experience: Experience) => void;
   onSayHiHost?: (host: { hostId: string; hostName: string }) => void;
   onOpenCreateDailyInbite?: () => void;
   activityHasUnread?: boolean;
@@ -114,6 +116,7 @@ export function ExploreScreen({
   onRequireAuth,
   onInviteCompanion,
   onSayHi,
+  onBookExperience,
   onSayHiHost,
   onOpenCreateDailyInbite,
   activityHasUnread = false,
@@ -776,7 +779,7 @@ export function ExploreScreen({
   const dailyBiteModals = (
     <AnimatePresence>
       {dailyBiteEditPost ? (
-        <motion.div
+        <AppShellTabbarPadMotion
           key="daily-edit"
           className="fixed inset-0 z-[100] flex items-end justify-center bg-black/25 p-3 sm:items-center"
           initial={{ opacity: 0 }}
@@ -828,7 +831,7 @@ export function ExploreScreen({
                   className="mt-1.5 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2.5 text-[14px] text-[#2C1A0E] outline-none focus:border-[#A0522D]/50"
                 />
               </label>
-              <div className="sticky bottom-0 z-10 -mx-5 border-t border-[#E6D2BF]/90 bg-[#FFFBF6]/98 px-5 pt-3 shadow-[0_-10px_24px_rgba(42,36,32,0.06)] backdrop-blur-sm max-sm:pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+5.75rem))] sm:pb-3">
+              <div className="sticky bottom-0 z-10 -mx-5 border-t border-[#E6D2BF]/90 bg-[#FFFBF6]/98 px-5 pt-3 shadow-[0_-10px_24px_rgba(42,36,32,0.06)] backdrop-blur-sm max-sm:pb-[max(1rem,calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)))] sm:pb-3">
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
@@ -848,10 +851,10 @@ export function ExploreScreen({
               </div>
             </div>
           </motion.div>
-        </motion.div>
+        </AppShellTabbarPadMotion>
       ) : null}
       {dailyBiteDeleteId ? (
-        <motion.div
+        <AppShellTabbarPadMotion
           key="daily-delete"
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/25 p-4"
           initial={{ opacity: 0 }}
@@ -894,20 +897,72 @@ export function ExploreScreen({
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </AppShellTabbarPadMotion>
       ) : null}
     </AnimatePresence>
   );
 
   if (mode === "detail" && selectedExperience) {
     const hostClerk = normalizeId(selectedExperience.hostClerkId ?? "");
+    const isOwnInvite = Boolean(user?.id && hostClerk && user.id === hostClerk);
+    const shareToastMessage = "링크가 복사되었습니다! 친구들에게 인바이트를 보내보세요! 🍪";
+    const shareUrl = window.location.href;
+    const shareTitle = `[인바이트] ${selectedExperience.hostName}님이 당신을 특별한 ${selectedExperience.title}에 초대했습니다! ☕`;
+    const copyShareUrl = async () => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        return;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = shareUrl;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    };
+
+    const handleShareInvitation = async () => {
+      try {
+        if (typeof navigator.share === "function") {
+          await navigator.share({
+            title: shareTitle,
+            text: shareTitle,
+            url: shareUrl,
+          });
+          toast.success(shareToastMessage);
+          return;
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+      try {
+        await copyShareUrl();
+        toast.success(shareToastMessage);
+      } catch {
+        toast.error("링크 복사에 실패했습니다. 다시 시도해 주세요.");
+      }
+    };
+
     return (
       <ExperienceDetail
         experience={selectedExperience}
+        isOwnInvite={isOwnInvite}
         onBack={() => setMode("feed")}
         onSayHi={() => {
           if (onRequireAuth && !onRequireAuth("chat")) return;
           onSayHi?.(selectedExperience);
+        }}
+        onEditInvitation={() => {
+          navigate("/profile", { state: { editInviteId: selectedExperience.id } });
+        }}
+        onShareInvitation={() => {
+          void handleShareInvitation();
         }}
         onOpenHostProfile={
           hostClerk.startsWith("user_")
@@ -919,6 +974,16 @@ export function ExploreScreen({
                 })
             : undefined
         }
+        onBookExperience={() => {
+          if (isOwnInvite) {
+            toast.error("본인의 초대장은 예약할 수 없습니다.");
+            return;
+          }
+          if (onRequireAuth && !onRequireAuth("booking")) return;
+          onBookExperience?.(selectedExperience);
+        }}
+        bookDisabled={isOwnInvite}
+        bookDisabledMessage={isOwnInvite ? "본인의 초대장은 예약할 수 없습니다." : undefined}
       />
     );
   }
@@ -1609,7 +1674,15 @@ function DailyBiteCommentsSection({
             }));
           }
         }
-        setComments(mergedForUi);
+        if (cancelled) return;
+        // Avoid wiping in-flight optimistic updates (e.g. comment like): the follow-up
+        // `myLikes` patch is skipped when generation changes, so this first `setComments`
+        // must not replace fresher React state with a stale `mergedForUi` snapshot.
+        if (baseline !== commentLikeHydrationGeneration.current) {
+          setComments((prev) => mergeCommentThreads(prev, mergedForUi));
+        } else {
+          setComments(mergedForUi);
+        }
 
         if (!token || !user?.id) return;
         const ids = mergedForUi.map((c) => c.id);
