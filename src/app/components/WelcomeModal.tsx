@@ -327,6 +327,12 @@ function WelcomeAuthContent({
 
       {error ? <p className="mt-3 text-center text-[12px] text-red-600">{error}</p> : null}
       {notice ? <p className="mt-3 text-center text-[12px] text-[#7C6A5E]">{notice}</p> : null}
+      {pending ? (
+        <div className="mt-3 flex items-center justify-center gap-2 text-[12px] font-medium text-[#7C6A5E]">
+          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#CDB8A7] border-t-[#A0522D]" />
+          <span>{t("welcomeModal.pleaseWait")}</span>
+        </div>
+      ) : null}
 
       <button
         type="button"

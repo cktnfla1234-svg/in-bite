@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { addHostedTour } from "@/lib/hostedTours";
 import { createInvite } from "@/lib/invites";
@@ -52,6 +53,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   const uiLocale = normalizeAppLocale(i18n.language);
   const { getToken } = useAuth();
   const { user } = useUser();
+  const navigate = useNavigate();
   const { preferredCurrency } = usePreferredCurrency();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const primaryPhotoInputRef = useRef<HTMLInputElement | null>(null);
@@ -154,6 +156,7 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
   };
 
   const handleCreateInvite = async () => {
+    if (isSaving) return;
     console.log("[CreateInvite] Upload button clicked");
     if (!hasBasicInfo) {
       const missing: string[] = [];
@@ -203,87 +206,72 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
       .filter(([, active]) => active)
       .map(([id]) => id);
 
-    let token: string | null = null;
-    if (user?.id) {
-      try {
-        console.log("[CreateInvite] requesting Supabase token for BITE deduction");
-        token = (await getToken({ template: "supabase" })) ?? null;
-        if (token) {
-          console.log("[CreateInvite] deducting BITE on server");
-          await applyBiteDeltaServer(user.id, token, -BITE_COST_CREATE_INVITE, "create_invite");
-          console.log("[CreateInvite] BITE deduction succeeded");
-        } else {
-          console.log("[CreateInvite] no token, dispatching local BITE deduction event");
-          window.dispatchEvent(
-            new CustomEvent("inbite-apply-bite", {
-              detail: { clerkId: user.id, delta: -BITE_COST_CREATE_INVITE, kind: "create_invite" },
-            }),
-          );
-        }
-      } catch (e) {
-        if (e instanceof Error && e.message === "insufficient_balance") {
-          console.error("[CreateInvite] BITE deduction failed: insufficient balance");
-          toast.error("Not enough BITE energy to publish this invite.");
-          setSaveError("Not enough BITE energy to publish this invite.");
-          return;
-        }
-        console.error("[CreateInvite] BITE deduction failed", e);
-        toast.error("We couldn’t deduct BITE energy. Check your connection and try again.");
-        setSaveError("We couldn’t deduct BITE energy. Check your connection and try again.");
-        return;
-      }
-    }
-
     const hostDisplay =
       user?.fullName?.trim() ||
       [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
       user?.username?.trim() ||
       undefined;
-
-    addLocalInvite({
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      location: finalLocation,
-      city: city?.trim() || main,
-      locationDetail: locationDetail.trim(),
-      description: description.trim(),
-      primaryPhotoUrl: primaryPhoto,
-      itinerary,
-      tasteTags: finalTasteTags,
-      includedOptions,
-      priceAmount: Math.max(0, priceAmount),
-      hostCurrency,
-      capacity,
-      meetupAt: meetupTbd ? "" : meetupAt,
-      createdAt: new Date().toISOString(),
-      hostClerkId: user?.id,
-      hostDisplayName: hostDisplay,
-    });
-
     setSaveError("");
     setIsSaving(true);
+    let token: string | null = null;
+    let biteDeducted = false;
     try {
-      if (user?.id && token) {
-        console.log("[CreateInvite] before Supabase createInvite call");
-        await createInvite(
-          {
-            clerkId: user.id,
-            title: title.trim(),
-            location: finalLocation,
-            primaryPhotoUrl: primaryPhoto,
-            description: description.trim(),
-            itinerary,
-            tasteTags: finalTasteTags,
-            includedOptions,
-            priceAmount: Math.max(0, priceAmount),
-            hostCurrency,
-            capacity,
-            meetupAt,
-          },
-          token,
-        );
-        console.log("[CreateInvite] after Supabase createInvite call");
+      if (!user?.id) {
+        throw new Error("sign_in_required");
       }
+
+      token = (await getToken({ template: "supabase" })) ?? null;
+      if (!token) {
+        throw new Error("missing_supabase_token");
+      }
+
+      // 1) Deduct 1 BITE on profiles (via atomic RPC).
+      console.log("[CreateInvite] deducting BITE on server");
+      await applyBiteDeltaServer(user.id, token, -BITE_COST_CREATE_INVITE, "create_invite");
+      biteDeducted = true;
+      console.log("[CreateInvite] BITE deduction succeeded");
+
+      // 2) Insert invite row.
+      console.log("[CreateInvite] before Supabase createInvite call");
+      await createInvite(
+        {
+          clerkId: user.id,
+          title: title.trim(),
+          location: finalLocation,
+          primaryPhotoUrl: primaryPhoto,
+          description: description.trim(),
+          itinerary,
+          tasteTags: finalTasteTags,
+          includedOptions,
+          priceAmount: Math.max(0, priceAmount),
+          hostCurrency,
+          capacity,
+          meetupAt: meetupTbd ? "" : meetupAt,
+        },
+        token,
+      );
+      console.log("[CreateInvite] after Supabase createInvite call");
+
+      // 3) Reflect in local feed after successful remote insert.
+      addLocalInvite({
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        location: finalLocation,
+        city: city?.trim() || main,
+        locationDetail: locationDetail.trim(),
+        description: description.trim(),
+        primaryPhotoUrl: primaryPhoto,
+        itinerary,
+        tasteTags: finalTasteTags,
+        includedOptions,
+        priceAmount: Math.max(0, priceAmount),
+        hostCurrency,
+        capacity,
+        meetupAt: meetupTbd ? "" : meetupAt,
+        createdAt: new Date().toISOString(),
+        hostClerkId: user.id,
+        hostDisplayName: hostDisplay,
+      });
 
       addHostedTour({
         title: title.trim(),
@@ -293,33 +281,42 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
         tasteTags: finalTasteTags,
         createdAt: new Date().toISOString(),
       });
+
+      setConfirmCreateOpen(false);
+      onClose();
+      navigate("/explore");
+      return;
     } catch (err) {
-      console.warn("Invite sync to Supabase failed, kept locally.", err);
-      console.error("[CreateInvite] failed during remote sync", err);
-      if (user?.id) {
+      console.error("[CreateInvite] failed during submit flow", err);
+
+      // If invite insert failed after deduction, refund BITE.
+      if (biteDeducted && user?.id) {
         try {
           const supabaseToken = token ?? (await getToken({ template: "supabase" }));
           if (supabaseToken) {
             await applyBiteDeltaServer(user.id, supabaseToken, BITE_COST_CREATE_INVITE, "adjustment", {
               reason: "create_invite_refund",
             });
-          } else {
-            window.dispatchEvent(
-              new CustomEvent("inbite-apply-bite", {
-                detail: { clerkId: user.id, delta: BITE_COST_CREATE_INVITE, kind: "adjustment" },
-              }),
-            );
           }
         } catch {
           // ignore refund failure
         }
       }
+
+      let message = "게시 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+      if (err instanceof Error && err.message === "insufficient_balance") {
+        message = "Not enough BITE energy to publish this invite.";
+      } else if (err instanceof Error && err.message === "missing_supabase_token") {
+        message = "인증 정보를 확인할 수 없습니다. 다시 로그인 후 시도해 주세요.";
+      } else if (err instanceof Error && err.message === "sign_in_required") {
+        message = "로그인 후 초대장을 생성할 수 있습니다.";
+      }
+      toast.error(message);
+      setSaveError(message);
     } finally {
       setIsSaving(false);
       console.log("[CreateInvite] submit flow finished");
     }
-    console.log("[CreateInvite] closing create modal");
-    onClose();
   };
 
   useEffect(() => {
@@ -621,14 +618,24 @@ export function CreateTourScreen({ onClose }: CreateTourScreenProps) {
                   type="button"
                   disabled={isSaving}
                   onClick={() => {
-                    setConfirmCreateOpen(false);
                     void handleCreateInvite();
                   }}
                   className="flex-1 rounded-2xl bg-[#A0522D] px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
                 >
-                  Create Inbite
+                  {isSaving ? "처리 중..." : "Create Inbite"}
                 </button>
               </div>
+            </div>
+          </AppShellTabbarPad>
+        ) : null}
+
+        {isSaving ? (
+          <AppShellTabbarPad className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+            <div className="relative z-10 w-full max-w-[320px] rounded-[22px] border border-[#E8D6C7] bg-[#FFF9F5] px-5 py-6 text-center shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-[#D7B89C] border-t-[#A0522D]" />
+              <p className="mt-3 text-[14px] font-semibold text-[#A0522D]">처리 중...</p>
+              <p className="mt-1 text-[12px] text-[#6F4C32]">포인트 차감 및 초대장 업로드를 진행하고 있어요.</p>
             </div>
           </AppShellTabbarPad>
         ) : null}

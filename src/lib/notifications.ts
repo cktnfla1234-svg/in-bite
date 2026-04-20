@@ -47,6 +47,10 @@ export function hasUnreadNotifications(clerkId: string): boolean {
   return readLocal(clerkId).some((n) => !n.read);
 }
 
+export function unreadNotificationCount(clerkId: string): number {
+  return readLocal(clerkId).reduce((acc, item) => acc + (item.read ? 0 : 1), 0);
+}
+
 export function markAllNotificationsRead(clerkId: string) {
   const next = readLocal(clerkId).map((n) => ({ ...n, read: true }));
   writeLocal(clerkId, next);

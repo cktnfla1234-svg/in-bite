@@ -73,7 +73,7 @@ type ExploreScreenProps = {
   onBookExperience?: (experience: Experience) => void;
   onSayHiHost?: (host: { hostId: string; hostName: string }) => void;
   onOpenCreateDailyInbite?: () => void;
-  activityHasUnread?: boolean;
+  activityUnreadCount?: number;
   onOpenActivity?: () => void;
   /** When set, opens this Daily Bite in detail (then consumer clears). */
   openDailyPostId?: string | null;
@@ -119,7 +119,7 @@ export function ExploreScreen({
   onBookExperience,
   onSayHiHost,
   onOpenCreateDailyInbite,
-  activityHasUnread = false,
+  activityUnreadCount = 0,
   onOpenActivity,
   openDailyPostId = null,
   onConsumedOpenDailyPost,
@@ -245,20 +245,19 @@ export function ExploreScreen({
     };
   }, [onDailyBiteEditModalOpenChange]);
 
+  const hasActivityUnread = activityUnreadCount > 0;
   const activityBell = (
     <button
       type="button"
       onClick={() => onOpenActivity?.()}
       className="relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#EDD5C0] bg-white/80 text-[#A0522D] shadow-sm"
-      aria-label={activityHasUnread ? t("explore.activityUnreadAria") : t("explore.activityAria")}
+      aria-label={hasActivityUnread ? t("explore.activityUnreadAria") : t("explore.activityAria")}
     >
       <Bell className="h-5 w-5" strokeWidth={2} />
-      {activityHasUnread ? (
-        <span
-          className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-white/90"
-          style={{ backgroundColor: "#C86B4A" }}
-          aria-hidden
-        />
+      {hasActivityUnread ? (
+        <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-[#D64545] px-1 py-0.5 text-center text-[10px] font-semibold leading-none text-white ring-2 ring-white/90">
+          {activityUnreadCount > 99 ? "99+" : activityUnreadCount}
+        </span>
       ) : null}
     </button>
   );
@@ -684,28 +683,6 @@ export function ExploreScreen({
     window.setTimeout(() => {
       setLikePopPostId((current) => (current === postId ? null : current));
     }, 220);
-
-    if (!currentlyLiked && post?.authorClerkId && user?.id && post.authorClerkId !== user.id) {
-      const actorName = user.firstName?.trim() || user.username || "Someone";
-      const content = t("explore.notifyLike", { name: actorName });
-      void (async () => {
-        try {
-          const token = await getToken({ template: "supabase" });
-          if (token) {
-            await insertNotificationRemote(token, {
-              type: "like",
-              actor_id: user.id,
-              target_id: String(post.authorClerkId),
-              content,
-              post_id: postId,
-              comment_id: null,
-            });
-          }
-        } catch {
-          // ignore
-        }
-      })();
-    }
 
     if (!user?.id) return;
     try {
@@ -1916,20 +1893,6 @@ function DailyBiteCommentsSection({
 
     try {
       const preview = trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
-
-      if (postAuthorClerkId && postAuthorClerkId !== user.id) {
-        const content = isReply
-          ? t("explore.notifyReply", { name: actorName, preview })
-          : t("explore.notifyComment", { name: actorName, preview });
-        pushRemote({
-          type: isReply ? "reply" : "comment",
-          actor_id: user.id,
-          target_id: postAuthorClerkId,
-          content,
-          post_id: postId,
-          comment_id: row.id,
-        });
-      }
 
       if (
         isReply &&

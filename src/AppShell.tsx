@@ -34,7 +34,6 @@ import { ActivitySheet } from "@/app/components/ActivitySheet";
 import { AppShellTabbarPadMotion } from "@/app/components/AppShellTabbarSafeArea";
 import type { AppNotification } from "@/lib/notifications";
 import {
-  hasUnreadNotifications,
   listNotifications,
   markNotificationRead,
   markNotificationReadRemote,
@@ -42,6 +41,7 @@ import {
   removeDemoNotifications,
   subscribeNotificationChanges,
   subscribeNotificationsRealtime,
+  unreadNotificationCount,
 } from "@/lib/notifications";
 import { playCrunchNotificationSound } from "@/lib/notificationSound";
 import { getFcmDeviceToken } from "@/lib/pushNotifications";
@@ -122,6 +122,7 @@ export default function AppShell({
   const [postSignupOpen, setPostSignupOpen] = useState(false);
   const [rewardAnim, setRewardAnim] = useState(false);
   const [showHomeQuickAction, setShowHomeQuickAction] = useState(false);
+  const [showHomeNotificationBar, setShowHomeNotificationBar] = useState(false);
   const [chatLaunch, setChatLaunch] = useState<ChatLaunchRequest | null>(null);
   const [isConnectingChat, setIsConnectingChat] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
@@ -365,7 +366,7 @@ export default function AppShell({
     };
   }, [getSupabaseToken, isSignedIn, welcomeClerkUserId]);
 
-  const activityUnread = Boolean(welcomeClerkUserId && hasUnreadNotifications(welcomeClerkUserId));
+  const activityUnreadCount = welcomeClerkUserId ? unreadNotificationCount(welcomeClerkUserId) : 0;
   const activityItems = useMemo(
     () => (welcomeClerkUserId ? listNotifications(welcomeClerkUserId) : []),
     [welcomeClerkUserId, activityTick],
@@ -374,6 +375,7 @@ export default function AppShell({
   const handleOpenActivity = () => {
     if (!requireAuth("sharing")) return;
     setActivityOpen(true);
+    setShowHomeNotificationBar(false);
   };
 
   const handleActivitySelect = (item: AppNotification) => {
@@ -491,6 +493,20 @@ export default function AppShell({
     };
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab !== "home") {
+      setShowHomeNotificationBar(false);
+      return;
+    }
+    if (!activityUnreadCount) {
+      setShowHomeNotificationBar(false);
+      return;
+    }
+    setShowHomeNotificationBar(true);
+    const timer = window.setTimeout(() => setShowHomeNotificationBar(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, activityUnreadCount]);
+
   const tabPanelClass = (tab: Tab) =>
     activeTab === tab ? "block w-full min-h-0 flex-1 flex flex-col" : "hidden";
   const isCreateModalOpen = createOpen || createDailyInbiteOpen;
@@ -568,7 +584,7 @@ export default function AppShell({
                 navigate(`/chat/${encodeURIComponent(roomId)}`);
               }}
               onOpenCreateDailyInbite={() => setCreateDailyInbiteOpen(true)}
-              activityHasUnread={activityUnread}
+              activityUnreadCount={activityUnreadCount}
               onOpenActivity={handleOpenActivity}
               openDailyPostId={pendingDailyPostId}
               onConsumedOpenDailyPost={() => setPendingDailyPostId(null)}
@@ -612,6 +628,26 @@ export default function AppShell({
           }
         }}
       />
+
+      <AnimatePresence>
+        {showHomeNotificationBar && activeTab === "home" && activityUnreadCount > 0 ? (
+          <motion.button
+            type="button"
+            key="home-notification-bar"
+            onClick={handleOpenActivity}
+            className="fixed bottom-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.9rem)] left-1/2 z-[84] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#E6D5C6] bg-[#FFFCF7]/98 px-4 py-3 text-left shadow-[0_14px_40px_rgba(42,36,32,0.16)] backdrop-blur-sm"
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+          >
+            <div className="text-[13px] font-semibold text-[#2C1A0E]">
+              {(user?.firstName?.trim() || user?.username || "Traveler")}님에게 {activityUnreadCount}개의 알림이 있어요!
+            </div>
+            <div className="mt-1 text-[11px] text-[#A0522D]/70">눌러서 알림 센터 열기</div>
+          </motion.button>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showFloatingActionButton ? (

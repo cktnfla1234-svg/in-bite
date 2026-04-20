@@ -37,6 +37,10 @@ export type AuthProfileValue = {
 
 const AuthProfileContext = createContext<AuthProfileValue | null>(null);
 
+function onboardingCacheKey(clerkId: string) {
+  return `inbite:onboarding:${clerkId}`;
+}
+
 export function AuthProfileProvider({ children }: { children: ReactNode }) {
   const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
@@ -51,8 +55,17 @@ export function AuthProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Never block the first signed-in navigation on profile upsert/onboarding checks.
+    // We hydrate quickly and sync in the background.
+    setIsChecking(false);
+    try {
+      const cached = window.localStorage.getItem(onboardingCacheKey(user.id));
+      if (cached === "1") setOnboardingDone(true);
+    } catch {
+      // ignore storage errors
+    }
+
     let cancelled = false;
-    setIsChecking(true);
     void (async () => {
       try {
         if (!isSupabaseConfigured()) {
@@ -66,17 +79,21 @@ export function AuthProfileProvider({ children }: { children: ReactNode }) {
         }
         await withTimeout(upsertClerkProfile(user, token), 12_000);
         const onboarding = await withTimeout(getOnboardingCompleted(user.id, token), 12_000);
-        if (!cancelled) setOnboardingDone(onboarding);
+        if (!cancelled) {
+          setOnboardingDone(onboarding);
+          try {
+            window.localStorage.setItem(onboardingCacheKey(user.id), onboarding ? "1" : "0");
+          } catch {
+            // ignore storage errors
+          }
+        }
       } catch {
         if (!cancelled) setOnboardingDone(false);
-      } finally {
-        if (!cancelled) setIsChecking(false);
       }
     })();
 
     return () => {
       cancelled = true;
-      setIsChecking(false);
     };
   }, [authLoaded, getToken, isSignedIn, user, userLoaded]);
 
