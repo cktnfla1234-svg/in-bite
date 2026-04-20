@@ -42,7 +42,9 @@
   },
   "appShell": {
     "makeMyInbite": "In meinen Alltag einladen",
-    "connecting": "Verbindung wird hergestellt..."
+    "connecting": "Verbindung wird hergestellt...",
+    "homeNotificationBar": "{{name}}, du hast {{count}} neue Benachrichtigungen!",
+    "openActivityCta": "Tippe, um das Aktivitätscenter zu öffnen"
   },
   "loginPrompt": {
     "title": "In-Bite beitreten",
@@ -289,6 +291,28 @@
     "searchCity": "Stadt suchen oder wählen…",
     "createCity": "\"{{city}}\" verwenden",
     "districtOptional": "Stadtteil / Viertel / Adresszusatz (optional)"
+  },
+  "inviteDetail": {
+    "editInvitation": "Einladung bearbeiten",
+    "ownInviteNoBookHint": "Du kannst deine eigene Einladung nicht buchen. Teile sie stattdessen mit Freunden.",
+    "shareWithFriends": "Mit Freunden teilen",
+    "bookUnavailable": "Nicht verfügbar",
+    "bookOwnError": "Du kannst deine eigene Einladung nicht buchen.",
+    "bookingIntroMessage": "Hallo! Ich interessiere mich für deinen {{title}}-Ablauf und wollte mich melden.",
+    "shareLinkCopied": "Link kopiert! Teile deine Einladung mit Freunden. 🍪",
+    "shareLinkCopyFailed": "Link konnte nicht kopiert werden. Bitte versuche es erneut.",
+    "shareTitle": "[In-Bite] {{hostName}} hat dich zu einem besonderen {{title}} eingeladen! ☕"
+  },
+  "createTour": {
+    "postFailed": "Beim Veröffentlichen ist ein Problem aufgetreten. Bitte versuche es gleich erneut.",
+    "postFailedRls": "Veröffentlichen wegen Berechtigungen (RLS) fehlgeschlagen. Bitte Supabase-Policies prüfen.",
+    "insufficientBalance": "Nicht genug BITE-Guthaben.",
+    "missingSupabaseToken": "Deine Sitzung konnte nicht bestätigt werden. Bitte erneut anmelden und versuchen.",
+    "signInRequired": "Bitte melde dich an, um eine Einladung zu erstellen.",
+    "profileSyncRequired": "Profilsynchronisierung erforderlich. Bitte versuche es in einem Moment erneut.",
+    "authExpired": "Deine Sitzung ist abgelaufen. Bitte erneut anmelden und versuchen.",
+    "processing": "Wird verarbeitet...",
+    "processingHint": "Punkte werden abgezogen und deine Einladung wird hochgeladen."
   },
   "wallet": {
     "recentActivity": "Letzte Aktivität"

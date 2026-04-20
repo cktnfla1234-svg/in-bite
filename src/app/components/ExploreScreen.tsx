@@ -899,9 +899,12 @@ export function ExploreScreen({
   if (mode === "detail" && selectedExperience) {
     const hostClerk = normalizeId(selectedExperience.hostClerkId ?? "");
     const isOwnInvite = Boolean(user?.id && hostClerk && user.id === hostClerk);
-    const shareToastMessage = "링크가 복사되었습니다! 친구들에게 인바이트를 보내보세요! 🍪";
+    const shareToastMessage = t("inviteDetail.shareLinkCopied");
     const shareUrl = window.location.href;
-    const shareTitle = `[인바이트] ${selectedExperience.hostName}님이 당신을 특별한 ${selectedExperience.title}에 초대했습니다! ☕`;
+    const shareTitle = t("inviteDetail.shareTitle", {
+      hostName: selectedExperience.hostName,
+      title: selectedExperience.title,
+    });
     const copyShareUrl = async () => {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
@@ -939,7 +942,7 @@ export function ExploreScreen({
         await copyShareUrl();
         toast.success(shareToastMessage);
       } catch {
-        toast.error("링크 복사에 실패했습니다. 다시 시도해 주세요.");
+        toast.error(t("inviteDetail.shareLinkCopyFailed"));
       }
     };
 

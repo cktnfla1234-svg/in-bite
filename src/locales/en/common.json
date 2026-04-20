@@ -42,7 +42,9 @@
   },
   "appShell": {
     "makeMyInbite": "Invite to my daily life",
-    "connecting": "Connecting..."
+    "connecting": "Connecting...",
+    "homeNotificationBar": "{{name}}, you have {{count}} new notifications!",
+    "openActivityCta": "Tap to open Activity Center"
   },
   "loginPrompt": {
     "title": "Join In-Bite",
@@ -289,6 +291,28 @@
     "searchCity": "Search or choose a city…",
     "createCity": "Use \"{{city}}\"",
     "districtOptional": "District / neighborhood / address detail (optional)"
+  },
+  "inviteDetail": {
+    "editInvitation": "Edit Invitation",
+    "ownInviteNoBookHint": "You can't book your own invitation. Share it with friends instead.",
+    "shareWithFriends": "Share with Friends",
+    "bookUnavailable": "Unavailable",
+    "bookOwnError": "You cannot book your own invitation.",
+    "bookingIntroMessage": "Hi! I'm interested in your {{title}} schedule, so I wanted to reach out.",
+    "shareLinkCopied": "Link copied! Share your invitation with friends. 🍪",
+    "shareLinkCopyFailed": "Could not copy the link. Please try again.",
+    "shareTitle": "[In-Bite] {{hostName}} invited you to a special {{title}}! ☕"
+  },
+  "createTour": {
+    "postFailed": "Something went wrong while publishing. Please try again shortly.",
+    "postFailedRls": "Publishing failed due to permission settings (RLS). Please check Supabase policies.",
+    "insufficientBalance": "Not enough BITE balance.",
+    "missingSupabaseToken": "Could not verify your session. Please sign in again and retry.",
+    "signInRequired": "Please sign in to create an invitation.",
+    "profileSyncRequired": "Profile sync is required. Please try again in a moment.",
+    "authExpired": "Your session has expired. Please sign in again and retry.",
+    "processing": "Processing...",
+    "processingHint": "We're deducting points and uploading your invitation."
   },
   "wallet": {
     "recentActivity": "Recent activity"

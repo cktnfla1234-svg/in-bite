@@ -42,7 +42,9 @@
   },
   "appShell": {
     "makeMyInbite": "나의 일상으로 초대하기",
-    "connecting": "연결 중..."
+    "connecting": "연결 중...",
+    "homeNotificationBar": "{{name}}님에게 {{count}}개의 알림이 있어요!",
+    "openActivityCta": "눌러서 알림 센터 열기"
   },
   "loginPrompt": {
     "title": "인바이트 가입",
@@ -289,6 +291,28 @@
     "searchCity": "도시를 검색하거나 선택…",
     "createCity": "\"{{city}}\" 사용",
     "districtOptional": "구·동·상세 주소 (선택)"
+  },
+  "inviteDetail": {
+    "editInvitation": "초대 수정",
+    "ownInviteNoBookHint": "본인의 여행은 예약할 수 없습니다. 대신 친구들에게 공유해 보세요!",
+    "shareWithFriends": "친구에게 공유하기",
+    "bookUnavailable": "예약 불가",
+    "bookOwnError": "본인의 초대장은 예약할 수 없습니다.",
+    "bookingIntroMessage": "안녕하세요! {{title}} 일정에 관심이 있어서 연락드렸어요.",
+    "shareLinkCopied": "링크가 복사되었습니다! 친구들에게 인바이트를 보내보세요! 🍪",
+    "shareLinkCopyFailed": "링크 복사에 실패했습니다. 다시 시도해 주세요.",
+    "shareTitle": "[인바이트] {{hostName}}님이 당신을 특별한 {{title}}에 초대했습니다! ☕"
+  },
+  "createTour": {
+    "postFailed": "게시에 문제가 생겼어요. 잠시 후 다시 시도해 주세요.",
+    "postFailedRls": "권한 설정(RLS) 문제로 게시에 실패했습니다. Supabase 정책을 확인해 주세요.",
+    "insufficientBalance": "BITE 잔액이 부족합니다.",
+    "missingSupabaseToken": "인증 정보를 확인할 수 없습니다. 다시 로그인 후 시도해 주세요.",
+    "signInRequired": "로그인 후 초대장을 생성할 수 있습니다.",
+    "profileSyncRequired": "프로필 동기화가 필요합니다. 잠시 후 다시 시도해 주세요.",
+    "authExpired": "인증이 만료되었습니다. 다시 로그인 후 시도해 주세요.",
+    "processing": "처리 중...",
+    "processingHint": "포인트 차감 및 초대장 업로드를 진행하고 있어요."
   },
   "wallet": {
     "recentActivity": "최근 활동"
