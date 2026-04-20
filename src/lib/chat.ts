@@ -66,6 +66,29 @@ export function listChatRooms(): ChatRoomRecord[] {
   return [...rooms].sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
 }
 
+function upsertRoomsLocally(nextRooms: ChatRoomRecord[]) {
+  const cur = readJson<ChatRoomRecord[]>(ROOMS_KEY, []);
+  const byId = new Map<string, ChatRoomRecord>();
+  for (const room of cur) byId.set(room.id, room);
+  for (const room of nextRooms) {
+    const prev = byId.get(room.id);
+    if (!prev) {
+      byId.set(room.id, room);
+      continue;
+    }
+    byId.set(room.id, {
+      ...prev,
+      ...room,
+      // Keep non-empty title if remote fallback has raw id.
+      title: room.title?.trim() ? room.title : prev.title,
+      // Preserve latest message metadata.
+      lastMessageAt: prev.lastMessageAt > room.lastMessageAt ? prev.lastMessageAt : room.lastMessageAt,
+      lastMessage: prev.lastMessageAt > room.lastMessageAt ? prev.lastMessage : room.lastMessage,
+    });
+  }
+  saveRooms([...byId.values()]);
+}
+
 export function listRoomMessages(roomId: string): ChatMessageRecord[] {
   const all = readJson<ChatMessageRecord[]>(MESSAGES_KEY, []);
   return all.filter((m) => m.roomId === roomId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -399,6 +422,106 @@ export async function fetchRemoteMessagesForRoom(
     if (m) out.push(m);
   }
   return out;
+}
+
+function toRoomTitleFromId(roomId: string, myUserId: string) {
+  const peers = parseDirectRoomPeers(roomId);
+  if (!peers) return roomId;
+  const peerId = peers.find((id) => id !== myUserId) ?? peers[0];
+  return peerId || roomId;
+}
+
+/**
+ * Hydrates local chat room list from Supabase so different devices converge to same rooms.
+ * Falls back to deriving room ids from `messages` when `chat_rooms.participant_clerk_ids` is unavailable.
+ */
+export async function hydrateChatRoomsFromRemote(accessToken: string, myUserId: string): Promise<boolean> {
+  const supabase = getSupabaseClient(accessToken);
+  if (!supabase || !myUserId) return false;
+  let changed = false;
+
+  const addCandidateRooms = (ids: string[]) => {
+    if (!ids.length) return;
+    const now = nowIso();
+    const candidates: ChatRoomRecord[] = ids
+      .filter(Boolean)
+      .map((roomId) => {
+        const peers = parseDirectRoomPeers(roomId);
+        const isGroup = isGroupRoomId(roomId);
+        return {
+          id: roomId,
+          title: isGroup ? "Group chat" : toRoomTitleFromId(roomId, myUserId),
+          type: isGroup ? "group" : "direct",
+          participantIds: peers ?? [myUserId],
+          createdAt: now,
+          lastMessage: "",
+          lastMessageAt: now,
+        };
+      });
+    if (candidates.length) {
+      upsertRoomsLocally(candidates);
+      changed = true;
+    }
+  };
+
+  const roomRows = await supabase
+    .from("chat_rooms")
+    .select("id, participant_clerk_ids, updated_at, created_at")
+    .contains("participant_clerk_ids", [myUserId])
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (!roomRows.error) {
+    const rows = (roomRows.data ?? []) as Array<Record<string, unknown>>;
+    const now = nowIso();
+    const candidates: ChatRoomRecord[] = rows
+      .map((row) => {
+        const id = typeof row.id === "string" ? row.id : "";
+        if (!id) return null;
+        const isGroup = isGroupRoomId(id);
+        const peers = parseDirectRoomPeers(id);
+        const rawParts = Array.isArray(row.participant_clerk_ids)
+          ? row.participant_clerk_ids.filter((x): x is string => typeof x === "string")
+          : [];
+        return {
+          id,
+          title: isGroup ? "Group chat" : toRoomTitleFromId(id, myUserId),
+          type: isGroup ? "group" : "direct",
+          participantIds: rawParts.length ? rawParts : peers ?? [myUserId],
+          createdAt: typeof row.created_at === "string" ? row.created_at : now,
+          lastMessage: "",
+          lastMessageAt:
+            typeof row.updated_at === "string" ? row.updated_at : typeof row.created_at === "string" ? row.created_at : now,
+        } satisfies ChatRoomRecord;
+      })
+      .filter((x): x is ChatRoomRecord => Boolean(x));
+    if (candidates.length) {
+      upsertRoomsLocally(candidates);
+      changed = true;
+    }
+    return changed;
+  }
+
+  // Legacy fallback: derive room ids from messages table if participant array query fails.
+  const sent = await supabase
+    .from("messages")
+    .select("room_id, created_at")
+    .eq("sender_id", myUserId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const received = await supabase
+    .from("messages")
+    .select("room_id, created_at")
+    .eq("receiver_id", myUserId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const ids = new Set<string>();
+  for (const row of [...(sent.data ?? []), ...(received.data ?? [])] as Array<Record<string, unknown>>) {
+    const roomId = typeof row.room_id === "string" ? row.room_id : "";
+    if (roomId) ids.add(roomId);
+  }
+  addCandidateRooms([...ids]);
+  return changed;
 }
 
 export async function upsertChatRoomParticipantsRemote(

@@ -8,6 +8,7 @@ import { ChatRoomScreen } from "./ChatRoomScreen";
 import {
   createGroupChatWithMembers,
   fetchGroupChatParticipantsRemote,
+  hydrateChatRoomsFromRemote,
   fetchRemoteMessagesForRoom,
   isGroupRoomId,
   joinGroupChatRoomRemote,
@@ -26,7 +27,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useUserProfilePreview } from "@/app/context/UserProfilePreviewContext";
 import { getProfileAvatar, subscribeProfileAvatarSync } from "@/lib/profileAvatarStore";
-import { prefetchPublicProfileAvatars } from "@/lib/publicProfile";
+import { fetchPublicProfileByClerkId, prefetchPublicProfileAvatars } from "@/lib/publicProfile";
 import { createPaymentIntent } from "@/lib/payments";
 import type { CurrencyCode } from "@/lib/currency";
 
@@ -62,6 +63,7 @@ export function ChatScreen({
   const [chats, setChats] = useState<ChatRoomRecord[]>([]);
   const [messageSyncTick, setMessageSyncTick] = useState(0);
   const [avatarTick, setAvatarTick] = useState(0);
+  const [peerNameMap, setPeerNameMap] = useState<Record<string, string>>({});
   const consumedLaunchNonce = useRef<number | null>(null);
   const displayName =
     user?.firstName?.trim() ||
@@ -75,6 +77,24 @@ export function ChatScreen({
   useEffect(() => {
     setChats(listChatRooms());
   }, [launchNonce]);
+
+  useEffect(() => {
+    if (myUserId === "guest") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token || cancelled) return;
+        const changed = await hydrateChatRoomsFromRemote(token, myUserId);
+        if (!cancelled && changed) setChats(listChatRooms());
+      } catch {
+        // remote room hydration is best-effort
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, myUserId]);
 
   useEffect(() => subscribeProfileAvatarSync(() => setAvatarTick((n) => n + 1)), []);
 
@@ -101,6 +121,39 @@ export function ChatScreen({
       cancelled = true;
     };
   }, [chats, myUserId, getToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token || cancelled) return;
+        const peerIds = [...new Set(
+          chats
+            .filter((chat) => chat.type === "direct")
+            .map((chat) => chat.participantIds.find((id) => id !== myUserId && id.startsWith("user_")) || "")
+            .filter(Boolean),
+        )];
+        if (!peerIds.length) return;
+        const rows = await Promise.all(peerIds.map((id) => fetchPublicProfileByClerkId(id, token)));
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        for (const row of rows) {
+          const id = row?.clerk_id?.trim();
+          const name = row?.display_name?.trim();
+          if (id && name) next[id] = name;
+        }
+        if (Object.keys(next).length) {
+          setPeerNameMap((prev) => ({ ...prev, ...next }));
+        }
+      } catch {
+        // optional: keep existing local title fallback
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chats, getToken, myUserId]);
 
   useEffect(() => {
     if (!chatLaunch?.chatId) return;
@@ -216,28 +269,42 @@ export function ChatScreen({
   }, [activeChatId, activeChat, myUserId, getToken]);
 
   const chatListItems = useMemo(() => {
+    const myNameCandidates = new Set(
+      [displayName, user?.fullName, user?.username, myUserId]
+        .map((v) => (v ?? "").trim())
+        .filter(Boolean),
+    );
     return chats.map((chat) => {
       const peerId =
         chat.type === "direct"
           ? chat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
           : undefined;
+      const peerNameFromProfile = peerId ? peerNameMap[peerId] : undefined;
+      const hasSelfTitle = myNameCandidates.has(chat.title?.trim() || "");
+      const directTitle =
+        peerNameFromProfile ||
+        (chat.type === "direct" && hasSelfTitle && peerId ? peerId : chat.title);
       const profileImageUrl = peerId ? getProfileAvatar(peerId) : undefined;
       return {
         ...chat,
-        profileName: chat.type === "direct" ? chat.title : undefined,
+        title: chat.type === "direct" ? directTitle : chat.title,
+        profileName: chat.type === "direct" ? directTitle : undefined,
         profileUserId: peerId,
         profileImageUrl,
         timeLabel: new Date(chat.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         participants: chat.participantIds,
       };
     });
-  }, [chats, myUserId, avatarTick]);
+  }, [chats, myUserId, avatarTick, displayName, user?.fullName, user?.username, peerNameMap]);
 
   const directPeerClerkId =
     activeChat?.type === "direct"
       ? activeChat.participantIds.find((id) => id !== myUserId && id.startsWith("user_"))
       : undefined;
-  const directPeerName = activeChat?.type === "direct" ? activeChat.title : undefined;
+  const directPeerName =
+    activeChat?.type === "direct"
+      ? (directPeerClerkId ? peerNameMap[directPeerClerkId] : undefined) || activeChat.title
+      : undefined;
 
   let roomNode: ReactNode;
   if (activeChat) {

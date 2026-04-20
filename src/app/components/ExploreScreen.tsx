@@ -154,6 +154,7 @@ export function ExploreScreen({
   const location = useLocation();
   const isGuestViewer = !user?.id;
   const { getToken } = useAuth();
+  const activeSection = isGuestViewer && section === "dailyBites" ? "invitations" : section;
   /** Bumped when the user toggles a post like so in-flight `hasLikedPost` hydration cannot overwrite optimistic UI. */
   const postLikeHydrationGeneration = useRef(0);
 
@@ -238,6 +239,15 @@ export function ExploreScreen({
   useEffect(() => {
     onDailyBiteEditModalOpenChange?.(dailyBiteEditPost != null);
   }, [dailyBiteEditPost, onDailyBiteEditModalOpenChange]);
+
+  useEffect(() => {
+    if (!isGuestViewer) return;
+    if (section === "dailyBites") onSectionChange?.("invitations");
+    if (mode === "dailyDetail") {
+      setMode("feed");
+      setSelectedDailyPostId(null);
+    }
+  }, [isGuestViewer, mode, onSectionChange, section]);
 
   useEffect(() => {
     return () => {
@@ -960,14 +970,14 @@ export function ExploreScreen({
         }
         onBookExperience={() => {
           if (isOwnInvite) {
-            toast.error("본인의 초대장은 예약할 수 없습니다.");
+            toast.error(t("inviteDetail.bookOwnError"));
             return;
           }
           if (onRequireAuth && !onRequireAuth("booking")) return;
           onBookExperience?.(selectedExperience);
         }}
         bookDisabled={isOwnInvite}
-        bookDisabledMessage={isOwnInvite ? "본인의 초대장은 예약할 수 없습니다." : undefined}
+        bookDisabledMessage={isOwnInvite ? t("inviteDetail.bookOwnError") : undefined}
       />
     );
   }
@@ -1070,17 +1080,19 @@ export function ExploreScreen({
           >
             {t("explore.invitations")}
           </button>
-          <button
-            type="button"
-            onClick={() => onSectionChange?.("dailyBites")}
-            className="flex-1 rounded-2xl py-3 text-[13px] font-semibold"
-            style={{
-              background: section === "dailyBites" ? "#A0522D" : "rgba(255,255,255,0.3)",
-              color: section === "dailyBites" ? "white" : "rgba(160,82,45,0.55)",
-            }}
-          >
-            {t("explore.dailyBites")}
-          </button>
+          {!isGuestViewer ? (
+            <button
+              type="button"
+              onClick={() => onSectionChange?.("dailyBites")}
+              className="flex-1 rounded-2xl py-3 text-[13px] font-semibold"
+              style={{
+                background: activeSection === "dailyBites" ? "#A0522D" : "rgba(255,255,255,0.3)",
+                color: activeSection === "dailyBites" ? "white" : "rgba(160,82,45,0.55)",
+              }}
+            >
+              {t("explore.dailyBites")}
+            </button>
+          ) : null}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1121,10 +1133,10 @@ export function ExploreScreen({
       </div>
 
       <div
-        key={section}
+        key={activeSection}
         className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-8"
       >
-        {section === "dailyBites" ? (
+        {activeSection === "dailyBites" ? (
           filteredDailyPosts.length ? (
             <div className="mt-6 space-y-4">
               {filteredDailyPosts.map((post) => (
@@ -1300,7 +1312,7 @@ export function ExploreScreen({
         )}
       </div>
 
-      {section === "dailyBites" && mode === "feed" && showDailyCreateHint ? (
+      {activeSection === "dailyBites" && mode === "feed" && showDailyCreateHint ? (
         <div className="pointer-events-none fixed bottom-[5.45rem] right-20 z-40 rounded-full border border-[#A0522D] bg-white/95 px-5 py-2.5 text-[14px] font-semibold text-[#A0522D] shadow-[0_14px_35px_rgba(0,0,0,0.08)]">
           {t("explore.shareDailyHint")}
         </div>

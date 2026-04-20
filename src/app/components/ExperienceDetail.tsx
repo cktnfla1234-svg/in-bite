@@ -1,5 +1,6 @@
 ﻿import { motion } from "framer-motion";
 import { Check, Clock, MapPin, MessageCircle, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { CookieLogo } from "./ui/CookieLogo";
 import { FiatPriceBadge } from "./FiatPriceBadge";
 import type { Experience } from "@/data/experiences";
@@ -31,6 +32,7 @@ export function ExperienceDetail({
   isOwnInvite = false,
   onOpenHostProfile,
 }: ExperienceDetailProps) {
+  const { t } = useTranslation("common");
   const { preferredCurrency } = usePreferredCurrency();
   return (
     <main className="invite-experience-detail min-h-full w-full bg-[#FDFAF5] pb-28">
@@ -106,7 +108,7 @@ export function ExperienceDetail({
                     onClick={() => onEditInvitation?.()}
                     className="font-brand-display inline-flex items-center gap-1 rounded-full border border-[#A0522D] bg-transparent px-3 py-1 text-[12px] font-semibold text-[#A0522D] shadow-none transition hover:bg-[#A0522D]/5"
                   >
-                    Edit Invitation (수정하기)
+                    {t("inviteDetail.editInvitation")}
                   </button>
                 ) : (
                   <button
@@ -243,14 +245,14 @@ export function ExperienceDetail({
         {isOwnInvite ? (
           <>
             <p className="font-body-ko mt-10 text-center text-[12px] text-[#7A5C4E]">
-              본인의 여행은 예약할 수 없습니다. 대신 친구들에게 공유해 보세요!
+              {t("inviteDetail.ownInviteNoBookHint")}
             </p>
             <button
               type="button"
               onClick={() => onShareInvitation?.()}
               className="font-brand-display mt-3 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F]"
             >
-              Share with Friends (친구에게 공유하기)
+              {t("inviteDetail.shareWithFriends")}
             </button>
           </>
         ) : (
@@ -261,7 +263,7 @@ export function ExperienceDetail({
             title={bookDisabled && bookDisabledMessage ? bookDisabledMessage : undefined}
             className="font-brand-display mt-10 w-full rounded-[18px] bg-[#A0522D] py-4 text-[1.15rem] font-semibold text-white shadow-[0_18px_45px_rgba(160,82,45,0.28)] transition hover:bg-[#8B452F] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#A0522D]"
           >
-            {bookDisabled ? "예약 불가" : "Book This Experience"}
+            {bookDisabled ? t("inviteDetail.bookUnavailable") : "Book This Experience"}
           </button>
         )}
       </div>

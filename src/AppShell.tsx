@@ -197,14 +197,14 @@ export default function AppShell({
     const hostId = experience.hostClerkId?.trim();
     if (!hostId) return;
     if (hostId === (welcomeClerkUserId ?? "").trim()) {
-      toast.error("본인의 초대장은 예약할 수 없습니다.");
+      toast.error(t("inviteDetail.bookOwnError"));
       return;
     }
 
     const meId = welcomeClerkUserId ?? "guest";
     const meName = "Traveler";
     const locale = typeof navigator !== "undefined" ? navigator.language : "en";
-    const bookingIntro = `안녕하세요! ${experience.title} 일정에 관심이 있어서 연락드렸어요.`;
+    const bookingIntro = t("inviteDetail.bookingIntroMessage", { title: experience.title });
     setIsConnectingChat(true);
     try {
       const accessToken = getSupabaseToken ? await getSupabaseToken() : null;
@@ -670,9 +670,12 @@ export default function AppShell({
             transition={{ duration: 0.24, ease: "easeOut" }}
           >
             <div className="text-[13px] font-semibold text-[#2C1A0E]">
-              {(user?.firstName?.trim() || user?.username || "Traveler")}님에게 {activityUnreadCount}개의 알림이 있어요!
+              {t("appShell.homeNotificationBar", {
+                name: user?.firstName?.trim() || user?.username || "Traveler",
+                count: activityUnreadCount,
+              })}
             </div>
-            <div className="mt-1 text-[11px] text-[#A0522D]/70">눌러서 알림 센터 열기</div>
+            <div className="mt-1 text-[11px] text-[#A0522D]/70">{t("appShell.openActivityCta")}</div>
           </motion.button>
         ) : null}
       </AnimatePresence>

@@ -113,24 +113,24 @@ export function CreateTourScreen({ onClose, shouldRestoreDraft = false }: Create
             : typeof maybe?.code === "string"
               ? maybe.code
               : "";
-      if (!rawFromObject) return "게시에 문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
+      if (!rawFromObject) return t("createTour.postFailed");
       const lower = rawFromObject.toLowerCase();
       if (lower.includes("row-level security") || lower.includes("permission denied") || lower.includes("42501")) {
-        return "권한 설정(RLS) 문제로 게시에 실패했습니다. Supabase 정책을 확인해 주세요.";
+        return t("createTour.postFailedRls");
       }
       return rawFromObject;
     }
     const raw = err.message || "";
     const msg = raw.toLowerCase();
-    if (raw === "insufficient_balance") return "BITE 잔액이 부족합니다.";
-    if (raw === "missing_supabase_token") return "인증 정보를 확인할 수 없습니다. 다시 로그인 후 시도해 주세요.";
-    if (raw === "sign_in_required") return "로그인 후 초대장을 생성할 수 있습니다.";
-    if (msg.includes("profile missing")) return "프로필 동기화가 필요합니다. 잠시 후 다시 시도해 주세요.";
+    if (raw === "insufficient_balance") return t("createTour.insufficientBalance");
+    if (raw === "missing_supabase_token") return t("createTour.missingSupabaseToken");
+    if (raw === "sign_in_required") return t("createTour.signInRequired");
+    if (msg.includes("profile missing")) return t("createTour.profileSyncRequired");
     if (msg.includes("row-level security") || msg.includes("permission denied") || msg.includes("42501")) {
-      return "권한 설정(RLS) 문제로 게시에 실패했습니다. Supabase 정책을 확인해 주세요.";
+      return t("createTour.postFailedRls");
     }
-    if (msg.includes("jwt") || msg.includes("token")) return "인증이 만료되었습니다. 다시 로그인 후 시도해 주세요.";
-    return raw || "게시에 문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
+    if (msg.includes("jwt") || msg.includes("token")) return t("createTour.authExpired");
+    return raw || t("createTour.postFailed");
   };
 
   const toggleOption = (id: string) => {
@@ -732,7 +732,7 @@ export function CreateTourScreen({ onClose, shouldRestoreDraft = false }: Create
                   }}
                   className="flex-1 rounded-2xl bg-[#A0522D] px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
                 >
-                  {isSaving ? "처리 중..." : "Create Inbite"}
+                  {isSaving ? t("createTour.processing") : "Create Inbite"}
                 </button>
               </div>
             </div>
@@ -744,8 +744,8 @@ export function CreateTourScreen({ onClose, shouldRestoreDraft = false }: Create
             <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
             <div className="relative z-10 w-full max-w-[320px] rounded-[22px] border border-[#E8D6C7] bg-[#FFF9F5] px-5 py-6 text-center shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-[#D7B89C] border-t-[#A0522D]" />
-              <p className="mt-3 text-[14px] font-semibold text-[#A0522D]">처리 중...</p>
-              <p className="mt-1 text-[12px] text-[#6F4C32]">포인트 차감 및 초대장 업로드를 진행하고 있어요.</p>
+              <p className="mt-3 text-[14px] font-semibold text-[#A0522D]">{t("createTour.processing")}</p>
+              <p className="mt-1 text-[12px] text-[#6F4C32]">{t("createTour.processingHint")}</p>
             </div>
           </AppShellTabbarPad>
         ) : null}
