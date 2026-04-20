@@ -271,11 +271,18 @@ export function ExploreScreen({
   useEffect(() => {
     const syncLocalInvites = () => {
       const myAvatar = getProfileAvatar(user?.id);
-      setInviteExperiences(getLocalInvites().map((invite) => mapLocalInviteToExperience(invite, user?.id, myAvatar)));
+      const myDisplayName =
+        user?.fullName?.trim() ||
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+        user?.username?.trim() ||
+        "Surim Cha";
+      setInviteExperiences(
+        getLocalInvites().map((invite) => mapLocalInviteToExperience(invite, user?.id, myAvatar, myDisplayName)),
+      );
     };
     syncLocalInvites();
     return subscribeLocalInvitesSync(syncLocalInvites);
-  }, [user?.id, avatarMapTick]);
+  }, [user?.id, user?.fullName, user?.firstName, user?.lastName, user?.username, avatarMapTick]);
 
   /** Sync invite cards from Supabase (all hosts). Uses anon client like Daily Bites — needs public SELECT RLS on `invites`. */
   useEffect(() => {
@@ -1971,7 +1978,6 @@ function DailyBiteCommentsSection({
     if (!user.id) return;
     commentLikeHydrationGeneration.current += 1;
     const liked = comment.likedBy.includes(user.id);
-    const snapshot = comments;
     const nextLiked = liked ? comment.likedBy.filter((id) => id !== user.id) : [...comment.likedBy, user.id];
     const optimisticCount = (comment.likesCount ?? comment.likedBy.length) + (liked ? -1 : 1);
 
@@ -1991,8 +1997,9 @@ function DailyBiteCommentsSection({
           prev.map((c) => (c.id === comment.id ? { ...c, likesCount: count, likedBy: nextLiked } : c)),
         );
       }
-    } catch {
-      setComments(snapshot);
+    } catch (err) {
+      // Keep optimistic UI state even when remote sync fails, so likes don't "flash then revert".
+      console.warn("[DailyBiteComments] comment like sync failed; keeping optimistic state", err);
     }
 
     if (!liked && comment.authorId !== user.id) {
@@ -2156,6 +2163,7 @@ function mapLocalInviteToExperience(
   invite: LocalInvite,
   myClerkId?: string | null,
   myAvatarUrl?: string,
+  myDisplayName?: string,
 ): Experience {
   const [cityRaw = invite.location, countryRaw = ""] = invite.location.split(",");
   const city = cityRaw.trim();
@@ -2165,9 +2173,10 @@ function mapLocalInviteToExperience(
   const includedItems = includedIds.map((id) => INCLUDED_LABEL_MAP[id]).filter(Boolean);
 
   const ownerClerkId = invite.hostClerkId ?? myClerkId ?? undefined;
+  const isOwnInvite = Boolean(ownerClerkId && myClerkId && ownerClerkId === myClerkId);
   const hostName =
     invite.hostDisplayName ??
-    (!invite.hostClerkId || invite.hostClerkId === myClerkId ? "You" : "Host");
+    (isOwnInvite ? myDisplayName || "Surim Cha" : "Host");
   const hostAvatarUrl =
     invite.hostClerkId && invite.hostClerkId !== myClerkId
       ? getProfileAvatar(invite.hostClerkId) || undefined
