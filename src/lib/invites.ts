@@ -154,8 +154,13 @@ export async function deleteInvite(inviteId: string, token: string) {
   if (!supabase) {
     throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
   }
-  const { error } = await supabase.from("invites").delete().eq("id", inviteId);
-  if (error) throw error;
+  const { data, error } = await supabase.from("invites").delete().eq("id", inviteId).select("id");
+  if (error) {
+    throw error;
+  }
+  if (!data?.length) {
+    throw new Error("Invite was not deleted.");
+  }
 }
 
 /**
@@ -240,6 +245,7 @@ export async function fetchInvitesByClerkId(token: string, clerkId: string, limi
       .from("invites")
       .select(select)
       .eq("clerk_id", targetClerkId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(limit);
     if (!error) return toInviteRowsWithOptionalDefaults((data ?? []) as unknown[]);

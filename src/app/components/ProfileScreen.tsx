@@ -47,13 +47,16 @@ import { normalizeAppLocale } from "@/lib/i18n/appLocales";
 import { setProfileAvatar } from "@/lib/profileAvatarStore";
 import {
   getLocalDailyBites,
+  deleteLocalDailyBite,
   subscribeLocalDailyBitesSync,
   toDailyBitePost,
+  updateLocalDailyBite,
   updateLocalDailyBiteAuthorAvatar,
 } from "@/lib/localDailyBites";
-import { fetchOwnDailyBites } from "@/lib/remoteDailyBites";
+import { deleteDailyBitePost, fetchOwnDailyBites, updateDailyBitePost } from "@/lib/remoteDailyBites";
 import type { DailyBitePost } from "@/data/experiences";
 import { toast } from "sonner";
+import { deleteInvite } from "@/lib/invites";
 
 type ProfileScreenProps = {
   onOpenCreateTour?: () => void;
@@ -92,6 +95,12 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
   const [editingTimeline, setEditingTimeline] = useState<InviteTimelineRow[]>([]);
   const [editingTimelineError, setEditingTimelineError] = useState("");
   const [editingInviteSaving, setEditingInviteSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ kind: "invite" | "daily"; id: string } | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
+  const [editingDailyBiteId, setEditingDailyBiteId] = useState<string | null>(null);
+  const [editingDailyBiteText, setEditingDailyBiteText] = useState("");
+  const [editingDailyBiteCity, setEditingDailyBiteCity] = useState("");
+  const [editingDailyBiteSaving, setEditingDailyBiteSaving] = useState(false);
   const consumedRouteEditInviteIdRef = useRef<string | null>(null);
   const lastMergedServerProfileUserIdRef = useRef<string | null>(null);
   const [profileSyncTick, setProfileSyncTick] = useState(0);
@@ -172,14 +181,8 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
     return subscribeLocalInvitesSync(syncInvites);
   }, [user?.id]);
 
-  const handleDeleteInvite = (inviteId: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H3',location:'src/app/components/ProfileScreen.tsx:handleDeleteInvite:beforeDelete',message:'Delete invite requested from profile tab',data:{inviteId,beforeCount:inviteeHistory.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    deleteLocalInvite(inviteId);
-    // #region agent log
-    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H3',location:'src/app/components/ProfileScreen.tsx:handleDeleteInvite:afterDelete',message:'Delete invite local mutation dispatched',data:{inviteId},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+  const requestDeleteInvite = (inviteId: string) => {
+    setConfirmDelete({ kind: "invite", id: inviteId });
   };
 
   useEffect(() => {
@@ -596,6 +599,78 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
     setEditingInviteId(null);
   };
 
+  const startEditDailyBite = (post: DailyBitePost) => {
+    setEditingDailyBiteId(post.id);
+    setEditingDailyBiteText(post.text);
+    setEditingDailyBiteCity(post.city);
+  };
+
+  const saveEditedDailyBite = async () => {
+    if (!editingDailyBiteId) return;
+    const text = editingDailyBiteText.trim();
+    if (!text) {
+      toast.error(t("explore.dailyBiteEmptyBodyError"));
+      return;
+    }
+    const city = editingDailyBiteCity.trim() || "Local";
+    updateLocalDailyBite(editingDailyBiteId, (prev) => ({ ...prev, text, city }));
+    setMyDailyBites((prev) => prev.map((p) => (p.id === editingDailyBiteId ? { ...p, text, city } : p)));
+    setEditingDailyBiteSaving(true);
+    try {
+      const token = await getToken({ template: "supabase" });
+      if (token) {
+        const current = myDailyBites.find((p) => p.id === editingDailyBiteId);
+        await updateDailyBitePost(token, editingDailyBiteId, {
+          body: text,
+          city,
+          authorBio: current?.authorBio ?? "",
+          photoUrls: current?.photoUrls ?? [],
+        });
+      }
+      setEditingDailyBiteId(null);
+    } catch {
+      toast.error(t("explore.unknownError"));
+    } finally {
+      setEditingDailyBiteSaving(false);
+    }
+  };
+
+  const requestDeleteDailyBite = (biteId: string) => {
+    setConfirmDelete({ kind: "daily", id: biteId });
+  };
+
+  const confirmDeleteNow = async () => {
+    if (!confirmDelete || deletingBusy) return;
+    const target = confirmDelete;
+    setDeletingBusy(true);
+    setConfirmDelete(null);
+    if (target.kind === "invite") {
+      deleteLocalInvite(target.id);
+      setInviteeHistory((prev) => prev.filter((x) => x.id !== target.id));
+      try {
+        const token = await getToken({ template: "supabase" });
+        if (!token) throw new Error("missing_supabase_token");
+        await deleteInvite(target.id, token);
+      } catch {
+        toast.error(t("explore.unknownError"));
+      } finally {
+        setDeletingBusy(false);
+      }
+      return;
+    }
+    deleteLocalDailyBite(target.id);
+    setMyDailyBites((prev) => prev.filter((x) => x.id !== target.id));
+    try {
+      const token = await getToken({ template: "supabase" });
+      if (!token) throw new Error("missing_supabase_token");
+      await deleteDailyBitePost(token, target.id);
+    } catch {
+      toast.error(t("explore.unknownError"));
+    } finally {
+      setDeletingBusy(false);
+    }
+  };
+
   return (
     <main className="relative min-h-full w-full bg-[#FDFAF5] pb-24 pt-6">
       <div className="px-5">
@@ -724,17 +799,29 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
             </div>
           ) : (
             myDailyBites.slice(0, 12).map((post) => (
-              <button
-                key={post.id}
-                type="button"
-                className="col-span-3 rounded-[18px] border border-[#E5D8CC] bg-white/80 p-3 text-left"
-              >
+              <div key={post.id} className="col-span-3 rounded-[18px] border border-[#E5D8CC] bg-white/80 p-3 text-left">
                 <div className="flex items-center justify-between gap-2">
                   <div className="truncate text-[13px] font-semibold text-[#A0522D]">{post.city}</div>
                   <div className="text-[11px] text-[#A0522D]/60">{formatDateTimeLabel(post.createdAtIso)}</div>
                 </div>
                 <p className="mt-1 line-clamp-2 whitespace-pre-line text-[12px] leading-5 text-[#2C1A0E]/85">{post.text}</p>
-              </button>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEditDailyBite(post)}
+                    className="rounded-full border border-[#EDD5C0] bg-white px-3 py-1 text-[11px] font-semibold text-[#A0522D]"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => requestDeleteDailyBite(post.id)}
+                    className="rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold text-red-600"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -825,7 +912,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteInvite(invite.id)}
+                        onClick={() => requestDeleteInvite(invite.id)}
                         className="rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold text-red-600"
                       >
                         {t("common.delete")}
@@ -979,6 +1066,80 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
                 })();
               }}
             />
+          </div>
+        </AppShellTabbarPad>
+      ) : null}
+
+      {confirmDelete ? (
+        <AppShellTabbarPad className="fixed inset-0 z-[95] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setConfirmDelete(null)}
+            aria-label="close"
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_24px_60px_rgba(42,36,32,0.18)]">
+            <p className="text-[17px] font-semibold text-[#2C1A0E]">정말 삭제할까요? 🍪</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={deletingBusy}
+                onClick={() => void confirmDeleteNow()}
+                className="rounded-full bg-red-600 px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-60"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </AppShellTabbarPad>
+      ) : null}
+
+      {editingDailyBiteId ? (
+        <AppShellTabbarPad className="fixed inset-0 z-[96] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setEditingDailyBiteId(null)}
+            aria-label="close"
+          />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#E6D2BF] bg-[#FFFBF6] p-5 shadow-[0_24px_60px_rgba(42,36,32,0.18)]">
+            <div className="text-[17px] font-semibold text-[#2C1A0E]">Daily Bite 수정</div>
+            <input
+              className="mt-3 w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2 text-[14px] outline-none"
+              value={editingDailyBiteCity}
+              onChange={(e) => setEditingDailyBiteCity(e.target.value)}
+              placeholder="City"
+            />
+            <textarea
+              className="mt-3 min-h-[140px] w-full rounded-xl border border-[#EDD5C0] bg-white px-3 py-2 text-[14px] outline-none"
+              value={editingDailyBiteText}
+              onChange={(e) => setEditingDailyBiteText(e.target.value)}
+              placeholder="내용"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingDailyBiteId(null)}
+                className="rounded-full border border-[#EDD5C0] bg-white px-4 py-2 text-[13px] font-semibold text-[#A0522D]"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={editingDailyBiteSaving}
+                onClick={() => void saveEditedDailyBite()}
+                className="rounded-full bg-[#A0522D] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-60"
+              >
+                {editingDailyBiteSaving ? "Saving..." : t("common.save")}
+              </button>
+            </div>
           </div>
         </AppShellTabbarPad>
       ) : null}

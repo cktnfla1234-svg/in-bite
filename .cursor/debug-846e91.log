@@ -1,0 +1,3 @@
+{"sessionId":"846e91","runId":"run1","hypothesisId":"H0","location":"src/AppShell.tsx:mount","message":"AppShell mounted for debug session","data":{"path":"/app","isSignedIn":true},"timestamp":1776738694441}
+{"sessionId":"846e91","runId":"run1","hypothesisId":"H0","location":"src/AppShell.tsx:mount","message":"AppShell mounted for debug session","data":{"path":"/app","isSignedIn":true},"timestamp":1776738695442}
+{"sessionId":"846e91","runId":"run1","hypothesisId":"H0","location":"src/AppShell.tsx:mount","message":"AppShell mounted for debug session","data":{"path":"/explore","isSignedIn":true},"timestamp":1776739109797}

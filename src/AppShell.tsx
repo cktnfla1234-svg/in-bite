@@ -140,6 +140,12 @@ export default function AppShell({
   const tabScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'846e91'},body:JSON.stringify({sessionId:'846e91',runId:'run1',hypothesisId:'H0',location:'src/AppShell.tsx:mount',message:'AppShell mounted for debug session',data:{path:typeof window!=='undefined'?window.location.pathname:'',isSignedIn},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [isSignedIn]);
+
+  useEffect(() => {
     const el = tabScrollRef.current;
     if (el) el.scrollTop = 0;
     window.scrollTo(0, 0);

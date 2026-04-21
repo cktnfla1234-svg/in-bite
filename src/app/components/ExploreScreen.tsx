@@ -869,7 +869,7 @@ export function ExploreScreen({
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="daily-bite-del-title" className="text-[17px] font-semibold text-[#2C1A0E]">
-              {t("explore.dailyBiteDeleteConfirmTitle")}
+              정말 삭제할까요? 🍪
             </h2>
             <p id="daily-bite-del-desc" className="mt-2 text-[14px] leading-relaxed text-[#2C1A0E]/85">
               {t("explore.dailyBiteDeleteConfirmBody")}
@@ -963,18 +963,29 @@ export function ExploreScreen({
         }}
         onDeleteInvitation={() => {
           if (!isOwnInvite || !user?.id) return;
-          const confirmed = window.confirm("이 초대장을 삭제하시겠어요?");
+          // #region agent log
+          fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/app/components/ExploreScreen.tsx:onDeleteInvitation:entry',message:'Detail delete invitation clicked',data:{inviteId:selectedExperience.id,isOwnInvite,hasUser:Boolean(user?.id)},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+          const confirmed = window.confirm("정말 삭제할까요? 🍪");
           if (!confirmed) return;
           const inviteId = selectedExperience.id;
-          setMode("feed");
-          setSelectedExperienceId(null);
-          deleteLocalInvite(inviteId);
           void (async () => {
             try {
               const token = await getToken({ template: "supabase" });
-              if (token) await deleteInvite(inviteId, token);
+              // #region agent log
+              fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/app/components/ExploreScreen.tsx:onDeleteInvitation:beforeServerDelete',message:'Detail delete invitation before server call',data:{inviteId,hasToken:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
+              // #endregion
+              if (!token) throw new Error("missing_supabase_token");
+              await deleteInvite(inviteId, token);
+              deleteLocalInvite(inviteId);
+              setInviteExperiences((prev) => prev.filter((item) => item.id !== inviteId));
+              setMode("feed");
+              setSelectedExperienceId(null);
               toast.success("초대장이 삭제되었습니다.");
             } catch {
+              // #region agent log
+              fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/app/components/ExploreScreen.tsx:onDeleteInvitation:serverDeleteFailed',message:'Detail delete invitation server call failed',data:{inviteId},timestamp:Date.now()})}).catch(()=>{});
+              // #endregion
               toast.error("서버 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
             }
           })();
@@ -1671,6 +1682,9 @@ function DailyBiteCommentsSection({
         if (token) {
           const remoteRows = await fetchDailyBiteComments(token, postId);
           const remote = remoteRows.map(mapRemoteCommentToStored);
+          // #region agent log
+          fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'846e91'},body:JSON.stringify({sessionId:'846e91',runId:'run1',hypothesisId:'H2',location:'src/app/components/ExploreScreen.tsx:DailyBiteCommentsSection:remote-map',message:'Mapped remote comments into UI model',data:{postId,remoteCount:remote.length,firstAuthorId:remote[0]?.authorId ?? null,firstAuthorName:remote[0]?.authorName ?? null},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           merged = mergeCommentThreads(local, remote);
         } else {
           merged = local;
@@ -1692,6 +1706,9 @@ function DailyBiteCommentsSection({
               ...c,
               authorImageUrl: imgMap.get(c.authorId) ?? c.authorImageUrl,
             }));
+            // #region agent log
+            fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'846e91'},body:JSON.stringify({sessionId:'846e91',runId:'run1',hypothesisId:'H3',location:'src/app/components/ExploreScreen.tsx:DailyBiteCommentsSection:profile-hydration',message:'Hydrated comment avatars from profiles but names remain from comments rows',data:{postId,profileHydratedCount:clerkIds.length,firstHydratedAuthorId:mergedForUi[0]?.authorId ?? null,firstHydratedAuthorName:mergedForUi[0]?.authorName ?? null},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
           }
         }
         if (cancelled) return;
@@ -1757,7 +1774,7 @@ function DailyBiteCommentsSection({
               const row: RemoteDailyBiteCommentRow = {
                 id: raw.id,
                 author_clerk_id: String(raw.author_clerk_id ?? ""),
-                author_name: String(raw.author_name ?? ""),
+                author_name: "",
                 body: String(raw.body ?? ""),
                 created_at: typeof raw.created_at === "string" ? raw.created_at : new Date().toISOString(),
               };
@@ -1791,9 +1808,14 @@ function DailyBiteCommentsSection({
                   if (mapped.authorId.startsWith("user_")) {
                     const prof = await fetchPublicProfileByClerkId(mapped.authorId, t2);
                     const img = prof?.image_url?.trim();
+                    const liveName = prof?.display_name?.trim() || mapped.authorName;
                     if (img) {
                       setComments((prev) =>
-                        prev.map((c) => (c.id === mapped.id ? { ...c, authorImageUrl: img } : c)),
+                        prev.map((c) => (c.id === mapped.id ? { ...c, authorImageUrl: img, authorName: liveName } : c)),
+                      );
+                    } else if (liveName !== mapped.authorName) {
+                      setComments((prev) =>
+                        prev.map((c) => (c.id === mapped.id ? { ...c, authorName: liveName } : c)),
                       );
                     }
                   }
@@ -1835,6 +1857,9 @@ function DailyBiteCommentsSection({
   useEffect(() => {
     persistStoredComments(postId, comments);
     onCommentTotalChange?.(comments.length);
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'846e91'},body:JSON.stringify({sessionId:'846e91',runId:'run1',hypothesisId:'H4',location:'src/app/components/ExploreScreen.tsx:DailyBiteCommentsSection:comments-state-commit',message:'Comments state committed to UI/storage',data:{postId,count:comments.length,firstRenderedAuthorName:comments[0]?.authorName ?? null,firstRenderedAuthorId:comments[0]?.authorId ?? null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     // Parent may pass an inline handler; avoid re-running on identity change only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, postId]);
@@ -1842,7 +1867,11 @@ function DailyBiteCommentsSection({
   if (!user?.id) return null;
 
   const rewardKey = `inbite:comment-reward:${user.id}:${postId}`;
-  const actorName = user.firstName?.trim() || user.username || "Someone";
+  const actorName =
+    user.fullName?.trim() ||
+    [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+    user.username ||
+    "Someone";
 
   const pushRemote = (row: Parameters<typeof insertNotificationRemote>[1]) => {
     void (async () => {
@@ -1876,7 +1905,6 @@ function DailyBiteCommentsSection({
         const inserted = await insertDailyBiteComment(token, {
           postId,
           authorClerkId: user.id,
-          authorName: actorName,
           body: trimmed,
         });
         if (inserted) {

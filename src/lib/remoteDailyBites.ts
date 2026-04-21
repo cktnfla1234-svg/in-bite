@@ -60,6 +60,7 @@ export async function fetchPublicDailyBites(limit = 80): Promise<DailyBitePost[]
   const { data, error } = await supabase
     .from("daily_bites")
     .select(SELECT_FIELDS)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -77,6 +78,7 @@ export async function fetchOwnDailyBites(token: string, clerkId: string, limit =
     .from("daily_bites")
     .select(SELECT_FIELDS)
     .eq("author_clerk_id", clerkId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -151,6 +153,9 @@ export async function deleteDailyBitePost(token: string, biteId: string) {
   if (!supabase) {
     throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
   }
-  const { error } = await supabase.from("daily_bites").delete().eq("id", biteId);
+  const { data, error } = await supabase.from("daily_bites").delete().eq("id", biteId).select("id");
   if (error) throw error;
+  if (!data?.length) {
+    throw new Error("Daily bite was not deleted.");
+  }
 }

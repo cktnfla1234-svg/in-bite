@@ -12,11 +12,14 @@ export async function fetchDailyBiteComments(token: string, postId: string): Pro
   const supabase = getSupabaseClient(token);
   if (!supabase) return [];
   // #region agent log
+  fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'846e91'},body:JSON.stringify({sessionId:'846e91',runId:'run1',hypothesisId:'H1',location:'src/lib/dailyBiteCommentsRemote.ts:fetchDailyBiteComments:query-shape',message:'Daily comments fetch joins profiles for latest display name',data:{postId,select:'id, author_clerk_id, body, created_at, profiles(display_name, full_name)'},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  // #region agent log
   fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/lib/dailyBiteCommentsRemote.ts:fetchDailyBiteComments:start',message:'Fetch daily bite comments start',data:{postId,hasToken:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
   // #endregion
   const { data, error } = await supabase
     .from("daily_bite_comments")
-    .select("id, author_clerk_id, author_name, body, created_at")
+    .select("id, author_clerk_id, body, created_at, profiles!daily_bite_comments_author_clerk_id_fkey(display_name, full_name)")
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
 
@@ -27,7 +30,19 @@ export async function fetchDailyBiteComments(token: string, postId: string): Pro
     console.warn("fetchDailyBiteComments", error);
     return [];
   }
-  const rows = (data ?? []) as RemoteDailyBiteCommentRow[];
+  const rows = ((data ?? []) as Array<{
+    id: string;
+    author_clerk_id: string;
+    body: string;
+    created_at: string;
+    profiles?: { display_name?: string | null; full_name?: string | null } | null;
+  }>).map((row) => ({
+    id: row.id,
+    author_clerk_id: row.author_clerk_id,
+    author_name: row.profiles?.display_name?.trim() || row.profiles?.full_name?.trim() || "Someone",
+    body: row.body,
+    created_at: row.created_at,
+  }));
   // #region agent log
   fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/lib/dailyBiteCommentsRemote.ts:fetchDailyBiteComments:success',message:'Fetch daily bite comments success',data:{postId,rowCount:rows.length,sampleAuthorName:rows[0]?.author_name ?? null,sampleAuthorId:rows[0]?.author_clerk_id ?? null},timestamp:Date.now()})}).catch(()=>{});
   // #endregion
@@ -36,7 +51,7 @@ export async function fetchDailyBiteComments(token: string, postId: string): Pro
 
 export async function insertDailyBiteComment(
   token: string,
-  input: { postId: string; authorClerkId: string; authorName: string; body: string },
+  input: { postId: string; authorClerkId: string; body: string },
 ): Promise<{ id: string; createdAt: string } | null> {
   const supabase = getSupabaseClient(token);
   if (!supabase) return null;
@@ -45,7 +60,6 @@ export async function insertDailyBiteComment(
     .insert({
       post_id: input.postId,
       author_clerk_id: input.authorClerkId,
-      author_name: input.authorName,
       body: input.body.trim(),
     })
     .select("id, created_at")
