@@ -163,11 +163,24 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
       const uid = user?.id;
       const all = getLocalInvites();
       const mine = uid ? all.filter((i) => !i.hostClerkId || i.hostClerkId === uid) : all;
+      // #region agent log
+      fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H3',location:'src/app/components/ProfileScreen.tsx:syncInvites',message:'Profile invite list synced from local storage',data:{uid:uid ?? null,totalInvites:all.length,mineCount:mine.length},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       setInviteeHistory(mine);
     };
     syncInvites();
     return subscribeLocalInvitesSync(syncInvites);
   }, [user?.id]);
+
+  const handleDeleteInvite = (inviteId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H3',location:'src/app/components/ProfileScreen.tsx:handleDeleteInvite:beforeDelete',message:'Delete invite requested from profile tab',data:{inviteId,beforeCount:inviteeHistory.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    deleteLocalInvite(inviteId);
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H3',location:'src/app/components/ProfileScreen.tsx:handleDeleteInvite:afterDelete',message:'Delete invite local mutation dispatched',data:{inviteId},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  };
 
   useEffect(() => {
     const uid = user?.id;
@@ -812,7 +825,7 @@ export function ProfileScreen({ onOpenCreateTour }: ProfileScreenProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteLocalInvite(invite.id)}
+                        onClick={() => handleDeleteInvite(invite.id)}
                         className="rounded-full border border-red-200 bg-white px-3 py-1 text-[11px] font-semibold text-red-600"
                       >
                         {t("common.delete")}

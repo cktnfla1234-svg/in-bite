@@ -49,7 +49,7 @@ import {
   setCommentLikeRemote,
 } from "@/lib/dailyBiteCommentLikes";
 import { useDisplayPostBody } from "@/lib/contentTranslation";
-import { fetchPublicInvites, type InviteRow } from "@/lib/invites";
+import { deleteInvite, fetchPublicInvites, type InviteRow } from "@/lib/invites";
 import { isSurimChaDemoUser, upsertSurimChaDemoInvites } from "@/lib/surimChaDemoInvites";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
@@ -899,6 +899,9 @@ export function ExploreScreen({
   if (mode === "detail" && selectedExperience) {
     const hostClerk = normalizeId(selectedExperience.hostClerkId ?? "");
     const isOwnInvite = Boolean(user?.id && hostClerk && user.id === hostClerk);
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H4',location:'src/app/components/ExploreScreen.tsx:detailModeOwnership',message:'Invite detail ownership computed',data:{selectedInviteId:selectedExperience.id,hostClerk,userId:user?.id ?? null,isOwnInvite},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     const shareToastMessage = t("inviteDetail.shareLinkCopied");
     const shareUrl = window.location.href;
     const shareTitle = t("inviteDetail.shareTitle", {
@@ -957,6 +960,24 @@ export function ExploreScreen({
         }}
         onEditInvitation={() => {
           navigate("/profile", { state: { editInviteId: selectedExperience.id } });
+        }}
+        onDeleteInvitation={() => {
+          if (!isOwnInvite || !user?.id) return;
+          const confirmed = window.confirm("이 초대장을 삭제하시겠어요?");
+          if (!confirmed) return;
+          const inviteId = selectedExperience.id;
+          setMode("feed");
+          setSelectedExperienceId(null);
+          deleteLocalInvite(inviteId);
+          void (async () => {
+            try {
+              const token = await getToken({ template: "supabase" });
+              if (token) await deleteInvite(inviteId, token);
+              toast.success("초대장이 삭제되었습니다.");
+            } catch {
+              toast.error("서버 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+            }
+          })();
         }}
         onShareInvitation={() => {
           void handleShareInvitation();

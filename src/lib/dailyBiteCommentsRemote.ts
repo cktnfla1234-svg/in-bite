@@ -11,6 +11,9 @@ export type RemoteDailyBiteCommentRow = {
 export async function fetchDailyBiteComments(token: string, postId: string): Promise<RemoteDailyBiteCommentRow[]> {
   const supabase = getSupabaseClient(token);
   if (!supabase) return [];
+  // #region agent log
+  fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/lib/dailyBiteCommentsRemote.ts:fetchDailyBiteComments:start',message:'Fetch daily bite comments start',data:{postId,hasToken:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const { data, error } = await supabase
     .from("daily_bite_comments")
     .select("id, author_clerk_id, author_name, body, created_at")
@@ -18,10 +21,17 @@ export async function fetchDailyBiteComments(token: string, postId: string): Pro
     .order("created_at", { ascending: true });
 
   if (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/lib/dailyBiteCommentsRemote.ts:fetchDailyBiteComments:error',message:'Fetch daily bite comments failed',data:{postId,errorMessage:error.message ?? ''},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     console.warn("fetchDailyBiteComments", error);
     return [];
   }
-  return (data ?? []) as RemoteDailyBiteCommentRow[];
+  const rows = (data ?? []) as RemoteDailyBiteCommentRow[];
+  // #region agent log
+  fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H2',location:'src/lib/dailyBiteCommentsRemote.ts:fetchDailyBiteComments:success',message:'Fetch daily bite comments success',data:{postId,rowCount:rows.length,sampleAuthorName:rows[0]?.author_name ?? null,sampleAuthorId:rows[0]?.author_clerk_id ?? null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  return rows;
 }
 
 export async function insertDailyBiteComment(

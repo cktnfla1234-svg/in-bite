@@ -280,6 +280,16 @@ export function removeSyntheticChatRooms() {
   saveMessages(keptMessages);
 }
 
+export function removeChatRoomLocal(roomId: string) {
+  if (!roomId.trim()) return;
+  const rooms = readJson<ChatRoomRecord[]>(ROOMS_KEY, []);
+  const nextRooms = rooms.filter((room) => room.id !== roomId);
+  const messages = readJson<ChatMessageRecord[]>(MESSAGES_KEY, []);
+  const nextMessages = messages.filter((message) => message.roomId !== roomId);
+  saveRooms(nextRooms);
+  saveMessages(nextMessages);
+}
+
 export function isGroupRoomId(roomId: string) {
   return roomId.trim().startsWith("group:");
 }

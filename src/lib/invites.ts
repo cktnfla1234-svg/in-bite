@@ -149,6 +149,15 @@ export async function updateInvite(
   throw new Error("updateInvite failed after schema compatibility retries.");
 }
 
+export async function deleteInvite(inviteId: string, token: string) {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
+  const { error } = await supabase.from("invites").delete().eq("id", inviteId);
+  if (error) throw error;
+}
+
 /**
  * Lists invites visible to the **authenticated** JWT. With legacy RLS (`select_own_invites`),
  * this returns only the current user's rows — do not use for the public Explore feed.

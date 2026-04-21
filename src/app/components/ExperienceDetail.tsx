@@ -11,6 +11,7 @@ type ExperienceDetailProps = {
   onBack: () => void;
   onSayHi?: () => void;
   onEditInvitation?: () => void;
+  onDeleteInvitation?: () => void;
   onShareInvitation?: () => void;
   onBookExperience?: () => void;
   bookDisabled?: boolean;
@@ -25,6 +26,7 @@ export function ExperienceDetail({
   onBack,
   onSayHi,
   onEditInvitation,
+  onDeleteInvitation,
   onShareInvitation,
   onBookExperience,
   bookDisabled = false,
@@ -244,6 +246,22 @@ export function ExperienceDetail({
 
         {isOwnInvite ? (
           <>
+            <div className="mt-8 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onEditInvitation?.()}
+                className="font-brand-display rounded-[14px] border border-[#A0522D] bg-white py-2.5 text-[0.95rem] font-semibold text-[#A0522D] transition hover:bg-[#A0522D]/5"
+              >
+                {t("inviteDetail.editInvitation")}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteInvitation?.()}
+                className="font-brand-display rounded-[14px] border border-red-300 bg-white py-2.5 text-[0.95rem] font-semibold text-red-600 transition hover:bg-red-50"
+              >
+                {t("common.delete")}
+              </button>
+            </div>
             <p className="font-body-ko mt-10 text-center text-[12px] text-[#7A5C4E]">
               {t("inviteDetail.ownInviteNoBookHint")}
             </p>

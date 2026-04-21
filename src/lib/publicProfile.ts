@@ -58,12 +58,22 @@ export async function fetchPublicProfileByClerkId(
 ): Promise<PublicProfileSnapshot | null> {
   const supabase = getSupabaseClient(token);
   if (!supabase) return null;
+  // #region agent log
+  fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H1',location:'src/lib/publicProfile.ts:fetchPublicProfileByClerkId:beforeRpc',message:'Fetch public profile rpc start',data:{clerkId:clerkId?.trim() ?? '',hasToken:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const { data, error } = await supabase.rpc("public_profile_for_clerk", { p_clerk_id: clerkId });
   if (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H1',location:'src/lib/publicProfile.ts:fetchPublicProfileByClerkId:rpcError',message:'Fetch public profile rpc failed',data:{clerkId:clerkId?.trim() ?? '',errorMessage:error.message ?? ''},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     console.warn("public_profile_for_clerk", error);
     return null;
   }
-  return parseRpcPayload(data);
+  const parsed = parseRpcPayload(data);
+  // #region agent log
+  fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H1',location:'src/lib/publicProfile.ts:fetchPublicProfileByClerkId:rpcSuccess',message:'Fetch public profile rpc success',data:{clerkId:clerkId?.trim() ?? '',hasProfile:Boolean(parsed),displayName:parsed?.display_name ?? null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  return parsed;
 }
 
 /** Fetches public snapshots and updates the local avatar cache for each user. */

@@ -83,6 +83,9 @@ export function UserProfilePreviewProvider({
         try {
           const token = (await getSupabaseToken?.()) ?? null;
           setLastFetchHadToken(Boolean(token));
+          // #region agent log
+          fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H1',location:'src/app/context/UserProfilePreviewContext.tsx:openUserProfile:tokenResolved',message:'Open user profile token resolved',data:{targetClerkId:id,hasToken:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           if (!token) {
             setSnapshot(null);
             setUserInvites([]);
@@ -92,6 +95,9 @@ export function UserProfilePreviewProvider({
             fetchPublicProfileByClerkId(id, token),
             fetchInvitesByClerkId(token, id, 18),
           ]);
+          // #region agent log
+          fetch('http://127.0.0.1:7638/ingest/05bfdf68-9e16-4df7-9d1c-8885890e8915',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d102b9'},body:JSON.stringify({sessionId:'d102b9',runId:'pre-fix',hypothesisId:'H1',location:'src/app/context/UserProfilePreviewContext.tsx:openUserProfile:result',message:'Open user profile loaded snapshot and invites',data:{targetClerkId:id,hasSnapshot:Boolean(row),inviteCount:invites.length,displayName:row?.display_name ?? null},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           setSnapshot(row);
           setUserInvites(invites);
           const fresh = row?.image_url?.trim();

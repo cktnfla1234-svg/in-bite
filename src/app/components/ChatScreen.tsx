@@ -15,6 +15,7 @@ import {
   listChatRooms,
   listRoomMessages,
   mergeParticipantsIntoLocalGroupRoom,
+  removeChatRoomLocal,
   mergeRemoteMessagesIntoLocal,
   mergeSingleRemoteMessageFromPayload,
   parseDirectRoomPeers,
@@ -494,6 +495,12 @@ export function ChatScreen({
     <ChatListScreen
       items={chatListItems}
       onSelectChat={setActiveChatId}
+      onDeleteChat={(chatId) => {
+        removeChatRoomLocal(chatId);
+        if (activeChatId === chatId) setActiveChatId(null);
+        setChats(listChatRooms());
+        toast.success(t("common.delete"));
+      }}
       onOpenProfile={({ userId, name }) => {
         if (!userId.startsWith("user_")) return;
         openUserProfile({
