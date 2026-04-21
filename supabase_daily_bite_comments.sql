@@ -5,14 +5,15 @@
 create table if not exists public.daily_bite_comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.daily_bites (id) on delete cascade,
-  author_clerk_id text not null,
-  author_name text not null default '',
+  author_clerk_id text not null references public.profiles (clerk_id) on update cascade on delete restrict,
   body text not null,
   created_at timestamptz not null default now()
 );
 
 create index if not exists daily_bite_comments_post_created_idx
   on public.daily_bite_comments (post_id, created_at asc);
+create index if not exists daily_bite_comments_author_clerk_idx
+  on public.daily_bite_comments (author_clerk_id);
 
 comment on table public.daily_bite_comments is 'Public thread comments for Daily Bite posts; RLS read for all, write as self.';
 
