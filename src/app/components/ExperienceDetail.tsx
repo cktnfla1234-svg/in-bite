@@ -236,10 +236,10 @@ export function ExperienceDetail({
         <section className="mt-8">
           <div className="rounded-[22px] border border-[#EDD5C0]/70 bg-white/90 p-5 shadow-[0_12px_36px_rgba(0,0,0,0.05)]">
             <h2 className="font-brand-display text-[1.1rem] font-semibold text-[#A0522D]">
-              About Your Host
+              About Your Host!
             </h2>
             <p className="font-body-ko mt-2 text-[13px] leading-relaxed text-[#4A382E]">
-              {experience.about}
+              {experience.hostBio?.trim() || "아직 자기소개가 없습니다 🐾"}
             </p>
           </div>
         </section>

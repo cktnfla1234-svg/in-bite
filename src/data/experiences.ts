@@ -17,6 +17,7 @@ export type Experience = {
   hostName: string;
   hostClerkId?: string;
   hostAvatarUrl?: string;
+  hostBio?: string;
   coverPhotoUrl?: string;
   city: string;
   country: string;

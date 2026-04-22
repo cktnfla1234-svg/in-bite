@@ -185,9 +185,10 @@ function LoadingScreen() {
 }
 
 function RootEntry() {
-  const { authLoaded, isSignedIn, isChecking } = useAuthProfile();
+  const { authLoaded, isSignedIn, isChecking, onboardingDone } = useAuthProfile();
   if (!authLoaded || isChecking) return <LoadingScreen />;
   if (!isSignedIn) return <Navigate to="/app" replace />;
+  if (!onboardingDone) return <Navigate to="/onboarding/tastes" replace />;
   return <Navigate to="/app" replace />;
 }
 
@@ -248,7 +249,7 @@ function MainAppRouteLeaf() {
  * are not torn down on SPA navigation.
  */
 function ProtectedMainAppLayout() {
-  const { authLoaded, isSignedIn, isChecking } = useAuthProfile();
+  const { authLoaded, isSignedIn, isChecking, onboardingDone } = useAuthProfile();
   const shellProps = useMainAppShellRouteProps();
 
   if (!authLoaded || isChecking) return <LoadingScreen />;
@@ -260,6 +261,7 @@ function ProtectedMainAppLayout() {
       </>
     );
   }
+  if (!onboardingDone) return <Navigate to="/onboarding/tastes" replace />;
   return (
     <>
       <AppShellWithAuthStateWithRouteState {...shellProps} />

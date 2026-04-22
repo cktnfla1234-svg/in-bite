@@ -38,7 +38,12 @@ import { AppShellTabbarPadMotion } from "./AppShellTabbarSafeArea";
 import type { LoginPromptKind } from "./LoginPromptModal";
 import { FiatPriceBadge } from "./FiatPriceBadge";
 import { BITE_REWARD_COMMENT } from "@/lib/bitePolicy";
-import { applyBiteDeltaServer } from "@/lib/profile";
+import {
+  applyBiteDeltaServer,
+  fetchPreferenceProfile,
+  fetchPreferenceProfilesByClerkIds,
+  type PreferenceProfileRow,
+} from "@/lib/profile";
 import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
 import { fetchLikedPostIds, togglePostLike } from "@/lib/dailyBites";
 import { insertNotificationRemote } from "@/lib/notifications";
@@ -101,6 +106,17 @@ function normalizeId(v?: string | null) {
   return (v ?? "").trim();
 }
 
+function overlapCount(a: string[] | null | undefined, b: string[] | null | undefined): number {
+  if (!a?.length || !b?.length) return 0;
+  const bSet = new Set(b.map((v) => v.trim()).filter(Boolean));
+  let score = 0;
+  for (const item of a) {
+    const key = item.trim();
+    if (key && bSet.has(key)) score += 1;
+  }
+  return score;
+}
+
 function isOwnDailyPost(post: DailyBitePost, userId?: string | null) {
   const postOwner = normalizeId(post.authorClerkId != null ? String(post.authorClerkId) : "");
   const me = normalizeId(userId != null ? String(userId) : "");
@@ -149,6 +165,8 @@ export function ExploreScreen({
   const [avatarMapTick, setAvatarMapTick] = useState(0);
   /** Post IDs confirmed owned by the signed-in user via authenticated Supabase query (fixes missing author_clerk_id on public rows). */
   const [serverOwnedDailyIds, setServerOwnedDailyIds] = useState<Set<string>>(() => new Set());
+  const [viewerPrefs, setViewerPrefs] = useState<PreferenceProfileRow | null>(null);
+  const [hostPrefsByClerkId, setHostPrefsByClerkId] = useState<Record<string, PreferenceProfileRow>>({});
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
@@ -279,6 +297,12 @@ export function ExploreScreen({
   }, [user?.id, user?.fullName, user?.firstName, user?.lastName, user?.username]);
 
   useEffect(() => {
+    if (user?.id) return;
+    setViewerPrefs(null);
+    setHostPrefsByClerkId({});
+  }, [user?.id]);
+
+  useEffect(() => {
     const syncLocalInvites = () => {
       const myAvatar = getProfileAvatar(user?.id);
       const myDisplayName =
@@ -287,12 +311,14 @@ export function ExploreScreen({
         user?.username?.trim() ||
         "Surim Cha";
       setInviteExperiences(
-        getLocalInvites().map((invite) => mapLocalInviteToExperience(invite, user?.id, myAvatar, myDisplayName)),
+        getLocalInvites().map((invite) =>
+          mapLocalInviteToExperience(invite, user?.id, myAvatar, myDisplayName, hostPrefsByClerkId),
+        ),
       );
     };
     syncLocalInvites();
     return subscribeLocalInvitesSync(syncLocalInvites);
-  }, [user?.id, user?.fullName, user?.firstName, user?.lastName, user?.username, avatarMapTick]);
+  }, [user?.id, user?.fullName, user?.firstName, user?.lastName, user?.username, avatarMapTick, hostPrefsByClerkId]);
 
   /** Sync invite cards from Supabase (all hosts). Uses anon client like Daily Bites — needs public SELECT RLS on `invites`. */
   useEffect(() => {
@@ -302,6 +328,26 @@ export function ExploreScreen({
       try {
         const rows = await fetchPublicInvites(160);
         if (!alive) return;
+        if (user?.id) {
+          const token = await getToken({ template: "supabase" });
+          if (token && alive) {
+            const [me, hosts] = await Promise.all([
+              fetchPreferenceProfile(user.id, token),
+              fetchPreferenceProfilesByClerkIds(
+                rows.map((r) => (typeof r.clerk_id === "string" ? r.clerk_id : "")),
+                token,
+              ),
+            ]);
+            if (alive) {
+              setViewerPrefs(me);
+              const nextMap: Record<string, PreferenceProfileRow> = {};
+              for (const row of hosts) {
+                if (row.clerk_id) nextMap[row.clerk_id] = row;
+              }
+              setHostPrefsByClerkId(nextMap);
+            }
+          }
+        }
         for (const row of rows) {
           upsertLocalInvite(mapInviteRowToLocalInvite(row));
         }
@@ -336,7 +382,7 @@ export function ExploreScreen({
       alive = false;
       channelCleanup?.();
     };
-  }, []);
+  }, [getToken, user?.id]);
 
   useEffect(() => {
     const syncLocalDailyBites = () => {
@@ -471,6 +517,28 @@ export function ExploreScreen({
   const sortedExperiences = useMemo(() => {
     const base = [...filteredExperiences];
     const noFilters = !selectedCity.trim() && !selectedTaste;
+    const viewerHobbies = viewerPrefs?.hobbies ?? [];
+    const viewerMoods = viewerPrefs?.moods ?? [];
+    const hasPreferenceSignals = viewerHobbies.length > 0 || viewerMoods.length > 0;
+
+    if (hasPreferenceSignals) {
+      const rank = new Map(base.map((item, idx) => [item.id, idx]));
+      base.sort((a, b) => {
+        const aHostPrefs = a.hostClerkId ? hostPrefsByClerkId[a.hostClerkId] : undefined;
+        const bHostPrefs = b.hostClerkId ? hostPrefsByClerkId[b.hostClerkId] : undefined;
+        const aScore =
+          overlapCount(viewerHobbies, aHostPrefs?.hobbies) + overlapCount(viewerMoods, aHostPrefs?.moods);
+        const bScore =
+          overlapCount(viewerHobbies, bHostPrefs?.hobbies) + overlapCount(viewerMoods, bHostPrefs?.moods);
+        if (bScore !== aScore) return bScore - aScore;
+        const ta = Date.parse(a.createdAt ?? "") || 0;
+        const tb = Date.parse(b.createdAt ?? "") || 0;
+        if (tb !== ta) return tb - ta;
+        return (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0);
+      });
+      return base;
+    }
+
     if (!noFilters) return base;
 
     const rank = new Map(base.map((item, idx) => [item.id, idx]));
@@ -486,7 +554,7 @@ export function ExploreScreen({
       return (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0);
     });
     return base;
-  }, [filteredExperiences, selectedCity, selectedTaste]);
+  }, [filteredExperiences, selectedCity, selectedTaste, viewerPrefs, hostPrefsByClerkId]);
 
   const filteredDailyPosts = useMemo(() => {
     const city = selectedCity.trim().toLowerCase();
@@ -2234,6 +2302,7 @@ function mapLocalInviteToExperience(
   myClerkId?: string | null,
   myAvatarUrl?: string,
   myDisplayName?: string,
+  hostPrefsByClerkId?: Record<string, PreferenceProfileRow>,
 ): Experience {
   const [cityRaw = invite.location, countryRaw = ""] = invite.location.split(",");
   const city = cityRaw.trim();
@@ -2251,6 +2320,7 @@ function mapLocalInviteToExperience(
     invite.hostClerkId && invite.hostClerkId !== myClerkId
       ? getProfileAvatar(invite.hostClerkId) || undefined
       : myAvatarUrl;
+  const hostPrefs = ownerClerkId ? hostPrefsByClerkId?.[ownerClerkId] : undefined;
 
   return {
     id: invite.id,
@@ -2258,6 +2328,7 @@ function mapLocalInviteToExperience(
     hostName,
     hostClerkId: ownerClerkId,
     hostAvatarUrl,
+    hostBio: hostPrefs?.bio ?? undefined,
     coverPhotoUrl: invite.primaryPhotoUrl,
     city,
     country,

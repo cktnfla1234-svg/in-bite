@@ -261,6 +261,82 @@ export async function saveCurrentTastes(clerkId: string, tastes: string[], token
   if (error) throw error;
 }
 
+export type OnboardingProfilePayload = {
+  age: number | null;
+  gender: string | null;
+  bio: string | null;
+  hobbies: string[];
+  moods: string[];
+};
+
+export async function saveOnboardingProfile(
+  clerkId: string,
+  payload: OnboardingProfilePayload,
+  token: string,
+) {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) {
+    throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+  }
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      age: payload.age,
+      gender: payload.gender,
+      bio: payload.bio,
+      hobbies: payload.hobbies,
+      moods: payload.moods,
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("clerk_id", clerkId);
+
+  if (error) throw error;
+}
+
+export type PreferenceProfileRow = {
+  clerk_id: string;
+  bio: string | null;
+  hobbies: string[] | null;
+  moods: string[] | null;
+};
+
+export async function fetchPreferenceProfile(clerkId: string, token: string): Promise<PreferenceProfileRow | null> {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) return null;
+  const target = clerkId.trim();
+  if (!target) return null;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("clerk_id, bio, hobbies, moods")
+    .eq("clerk_id", target)
+    .maybeSingle();
+  if (error) {
+    console.warn("fetchPreferenceProfile", error);
+    return null;
+  }
+  return (data ?? null) as PreferenceProfileRow | null;
+}
+
+export async function fetchPreferenceProfilesByClerkIds(
+  clerkIds: string[],
+  token: string,
+): Promise<PreferenceProfileRow[]> {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
+  const uniqueIds = [...new Set(clerkIds.map((id) => id.trim()).filter(Boolean))];
+  if (!uniqueIds.length) return [];
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("clerk_id, bio, hobbies, moods")
+    .in("clerk_id", uniqueIds);
+  if (error) {
+    console.warn("fetchPreferenceProfilesByClerkIds", error);
+    return [];
+  }
+  return (data ?? []) as PreferenceProfileRow[];
+}
+
 export async function fetchProfileCurrencyPrefs(clerkId: string, token: string): Promise<CurrencyCode> {
   const supabase = getSupabaseClient(token);
   if (!supabase) return "KRW";
