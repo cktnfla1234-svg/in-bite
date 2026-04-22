@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let warnedMissingConfig = false;
+const clientCache = new Map<string, SupabaseClient>();
 
 export function isSupabaseConfigured(): boolean {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -26,7 +27,11 @@ export function getSupabaseClient(accessToken?: string): SupabaseClient | null {
     return null;
   }
 
-  return createClient(url, anonKey, {
+  const cacheKey = accessToken?.trim() ? `auth:${accessToken.trim()}` : "anon";
+  const cached = clientCache.get(cacheKey);
+  if (cached) return cached;
+
+  const client = createClient(url, anonKey, {
     global: accessToken
       ? {
           headers: {
@@ -35,4 +40,6 @@ export function getSupabaseClient(accessToken?: string): SupabaseClient | null {
         }
       : undefined,
   });
+  clientCache.set(cacheKey, client);
+  return client;
 }

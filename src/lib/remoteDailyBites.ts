@@ -54,7 +54,12 @@ export function dailyBiteRowToPost(row: DailyBiteDbRow): DailyBitePost {
 const SELECT_FIELDS =
   "id, author_clerk_id, author_name, author_bio, body, city, photo_urls, author_image_url, likes_count, comments_count, created_at";
 
-export async function fetchPublicDailyBites(limit = 80): Promise<DailyBitePost[]> {
+function mapFeedRowsToPosts(data: unknown): DailyBitePost[] {
+  if (!Array.isArray(data)) return [];
+  return (data as DailyBiteDbRow[]).map((r) => dailyBiteRowToPost(r));
+}
+
+async function fetchPublicDailyBitesLegacy(limit: number): Promise<DailyBitePost[]> {
   const supabase = getSupabaseClient();
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -71,7 +76,7 @@ export async function fetchPublicDailyBites(limit = 80): Promise<DailyBitePost[]
   return (data ?? []).map((r) => dailyBiteRowToPost(r as DailyBiteDbRow));
 }
 
-export async function fetchOwnDailyBites(token: string, clerkId: string, limit = 120): Promise<DailyBitePost[]> {
+async function fetchOwnDailyBitesLegacy(token: string, clerkId: string, limit: number): Promise<DailyBitePost[]> {
   const supabase = getSupabaseClient(token);
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -87,6 +92,37 @@ export async function fetchOwnDailyBites(token: string, clerkId: string, limit =
     return [];
   }
   return (data ?? []).map((r) => dailyBiteRowToPost(r as DailyBiteDbRow));
+}
+
+/**
+ * Prefer SQL `fetch_public_daily_bites_feed` (profiles JOIN + denormalized like/comment counts in one call).
+ * Falls back to plain `.select()` if the RPC is not deployed yet.
+ */
+export async function fetchPublicDailyBites(limit = 80): Promise<DailyBitePost[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("fetch_public_daily_bites_feed", { p_limit: limit });
+  if (!error && data != null) {
+    const rows = Array.isArray(data) ? data : [data];
+    return mapFeedRowsToPosts(rows);
+  }
+  if (error) console.warn("fetch_public_daily_bites_feed", error);
+  return fetchPublicDailyBitesLegacy(limit);
+}
+
+export async function fetchOwnDailyBites(token: string, clerkId: string, limit = 120): Promise<DailyBitePost[]> {
+  const supabase = getSupabaseClient(token);
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("fetch_own_daily_bites_feed", {
+    p_clerk_id: clerkId,
+    p_limit: limit,
+  });
+  if (!error && data != null) {
+    const rows = Array.isArray(data) ? data : [data];
+    return mapFeedRowsToPosts(rows);
+  }
+  if (error) console.warn("fetch_own_daily_bites_feed", error);
+  return fetchOwnDailyBitesLegacy(token, clerkId, limit);
 }
 
 export async function insertDailyBitePost(

@@ -150,6 +150,7 @@ export function subscribeInvitesDiscoveryRealtime(
 
   return () => {
     if (timer != null) window.clearTimeout(timer);
+    void channel.unsubscribe();
     void supabase.removeChannel(channel);
   };
 }

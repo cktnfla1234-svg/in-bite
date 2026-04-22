@@ -1,17 +1,6 @@
--- Seed the two Surim Cha demo invites into `public.invites` so Explore shows them for everyone
--- (same copy as `src/lib/surimChaDemoInvites.ts`).
---
--- Prerequisites:
---   - `supabase_invites.sql` applied
---   - Public read on invites for the feed: `supabase_rls_production_invites_feed.sql`
---
--- Host `clerk_id`:
---   1) Leave `v_override` empty to auto-pick from `profiles` where display/first/last name matches surim + cha.
---   2) Or set `v_override` to your Clerk id (e.g. 'user_2abc...') and re-run.
-
 do $$
 declare
-  v_override text := ''; -- e.g. 'user_xxxxxxxxxxxxxxxxxxxxxxxx'
+  v_override text := '';
   v_clerk text;
 begin
   if v_override is not null and trim(v_override) <> '' then
@@ -52,21 +41,21 @@ begin
   (
     'a1000000-0000-4000-8000-000000000001'::uuid,
     v_clerk,
-    '책 읽으며 카페 두 곳 투어 (강남 → 연남)',
+    '책 마시고 커피 읽을 사람🙋‍♀️',
     'Seoul, South Korea',
     'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80',
-    E'조용히 책 읽기 좋은 카페 두 곳을 옮겨 다니며 커피 한 잔씩 나눠요.\n첫 카페에서는 각자 읽고 싶은 책 한 권만 들고 오면 됩니다.\n두 번째 카페까지 걸으며 가볍게 수다도 나눠요. 초보 독서모임 환영!',
+    E'좋아하는 작가나 책 선정해서 수다떨어요!\n책 읽고 이야기 할 사람이 없는 사람 \'대\'\'환\'\'영\'✨',
     $it1$
     [
-      {"time": "14:00", "title": "1카페 · 강남", "description": "에스프레소 베이스 커피와 창가 자리에서 1시간 독서."},
-      {"time": "15:30", "title": "이동 · 지하철 2호선", "description": "합정 방향으로 이동 (약 25분)."},
-      {"time": "16:15", "title": "2카페 · 연남", "description": "핸드드립 위주 카페. 디저트는 선택!"}
+      {"time": "14:00", "title": "첫번째, 카페 · Upside Coffee", "description": "시그니처 커피(해방촌 커피, 뚝섬 커피, 바나나 에스프레소 등)이 너무 맛있는 곳이에요! 너무 조용하지도, 시끄럽지도 않아서 얘기나누기 딱 좋아요!"},
+      {"time": "15:30", "title": "두번째, 카페 · MaCoy Cafe", "description": "성수 제일 카푸치노 맛집."},
+      {"time": "16:15", "title": "세번째, 카페 · Circle", "description": "(Optional) 연달아 커피가 힘들면 커피 or 티 선택가능한 곳으로 모십니다~~"}
     ]
     $it1$::jsonb,
     array['Cafe Hopping', 'Art & Culture', 'Slow Travel']::text[],
-    array['coffee', 'dessert', 'transport']::text[],
+    array['coffee', 'dessert', 'tea']::text[],
     1,
-    35000,
+    15000,
     'KRW',
     4,
     '2026-05-10T14:00:00+00'::timestamptz,
@@ -76,20 +65,20 @@ begin
   (
     'a1000000-0000-4000-8000-000000000002'::uuid,
     v_clerk,
-    '서울 비건 식당 & 카페 투어',
+    '비건은 힘이 세다🥑👊',
     'Seoul, South Korea',
     'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80',
-    E'비건 브런치 → 플랜트 베이스 디저트 카페까지 한 번에 즐기는 반나절 코스예요.\n알레르기·선호(무글루텐 등)는 미리 알려주세요. 사진 많이 찍어도 좋아요!',
+    E'비건 브런치 → 플랜트 베이스 디저트 카페까지 한 번에 부수는 반나절 코스예요.\n알레르기·선호(무글루텐 등)는 미리 알려주세요!✨',
     $it2$
     [
-      {"time": "11:00", "title": "비건 브런치", "description": "종로 근처 비건 레스토랑 — 샐러드·토스트·스무디 보울."},
-      {"time": "13:00", "title": "성수 비건 카페", "description": "케이크·쿠키는 모두 비건. 커피 or 티 선택."}
+      {"time": "11:00", "title": "비건 브런치", "description": "종로 오세계향 — 모든 한식이 비건 재료로 만들어짐!"},
+      {"time": "13:00", "title": "종로 비건 카페", "description": "케이크·쿠키가 모두 비건. 우유 계란 없이 어케했노? 커피 or 티 선택."}
     ]
     $it2$::jsonb,
     array['Vegetarian Friendly', 'Street Food', 'Cafe Hopping']::text[],
     array['meal', 'coffee', 'dessert']::text[],
     1,
-    42000,
+    0,
     'KRW',
     5,
     '2026-05-17T11:00:00+00'::timestamptz,

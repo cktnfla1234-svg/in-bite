@@ -40,7 +40,7 @@ import { FiatPriceBadge } from "./FiatPriceBadge";
 import { BITE_REWARD_COMMENT } from "@/lib/bitePolicy";
 import { applyBiteDeltaServer } from "@/lib/profile";
 import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
-import { hasLikedPost, togglePostLike } from "@/lib/dailyBites";
+import { fetchLikedPostIds, togglePostLike } from "@/lib/dailyBites";
 import { insertNotificationRemote } from "@/lib/notifications";
 import {
   fetchCommentLikeCount,
@@ -58,7 +58,7 @@ import {
   insertDailyBiteComment,
   type RemoteDailyBiteCommentRow,
 } from "@/lib/dailyBiteCommentsRemote";
-import { fetchPublicProfileByClerkId, prefetchPublicProfileAvatars } from "@/lib/publicProfile";
+import { fetchPublicProfileByClerkId } from "@/lib/publicProfile";
 import { isSelectableCurrency } from "@/lib/currency";
 
 type ExploreScreenProps = {
@@ -234,7 +234,7 @@ export function ExploreScreen({
     return () => {
       cancelled = true;
     };
-  }, [user?.id, getToken, section]);
+  }, [user?.id, getToken]);
 
   useEffect(() => {
     onDailyBiteEditModalOpenChange?.(dailyBiteEditPost != null);
@@ -325,6 +325,7 @@ export function ExploreScreen({
           )
           .subscribe();
         channelCleanup = () => {
+          void channel.unsubscribe();
           void supabase.removeChannel(channel);
         };
       } catch {
@@ -365,35 +366,6 @@ export function ExploreScreen({
       cancelled = true;
     };
   }, [section]);
-
-  /** Refresh author avatars from `public_profile_for_clerk` so feed matches profile edits without opening the modal. */
-  useEffect(() => {
-    if (section !== "dailyBites") return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getToken({ template: "supabase" });
-        if (!token || cancelled) return;
-        const ids = new Set<string>();
-        for (const p of remoteDailyPosts) {
-          const id = normalizeId(p.authorClerkId != null ? String(p.authorClerkId) : "");
-          if (id.startsWith("user_")) ids.add(id);
-        }
-        for (const p of localDailyPosts) {
-          const id = normalizeId(p.authorClerkId != null ? String(p.authorClerkId) : "");
-          if (id.startsWith("user_")) ids.add(id);
-        }
-        if (!ids.size) return;
-        await prefetchPublicProfileAvatars([...ids], token);
-        if (!cancelled) setAvatarMapTick((v) => v + 1);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [section, remoteDailyPosts, localDailyPosts, getToken]);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -441,6 +413,7 @@ export function ExploreScreen({
           )
           .subscribe();
         cleanup = () => {
+          void channel.unsubscribe();
           void supabase.removeChannel(channel);
         };
       } catch {
@@ -541,12 +514,11 @@ export function ExploreScreen({
       try {
         const token = await getToken({ template: "supabase" });
         if (!token) return;
-        const entries = await Promise.all(
-          mergedDailyPosts.map(async (post) => [post.id, await hasLikedPost(post.id, user.id, token)] as const),
-        );
+        const postIds = mergedDailyPosts.map((post) => post.id);
+        const likedIdSet = await fetchLikedPostIds(postIds, user.id, token);
         if (cancelled) return;
         if (baseline !== postLikeHydrationGeneration.current) return;
-        setLikedPosts(Object.fromEntries(entries));
+        setLikedPosts(Object.fromEntries(postIds.map((id) => [id, likedIdSet.has(id)])));
       } catch {
         // Keep local default state if DB is unavailable.
       }
@@ -1045,6 +1017,7 @@ export function ExploreScreen({
               >
                 <DailyBiteCard
                   post={selectedDailyPost}
+                  visualLoadMode="detail"
                   canManage={myOwnedDailyPostIds.has(selectedDailyPost.id)}
                   canSayHi={!myOwnedDailyPostIds.has(selectedDailyPost.id)}
                   liked={Boolean(likedPosts[selectedDailyPost.id])}
@@ -1174,7 +1147,7 @@ export function ExploreScreen({
         {activeSection === "dailyBites" ? (
           filteredDailyPosts.length ? (
             <div className="mt-6 space-y-4">
-              {filteredDailyPosts.map((post) => (
+              {filteredDailyPosts.map((post, postIndex) => (
                 <motion.article
                   key={post.id}
                   onClick={() => handleOpenDailyPost(post.id)}
@@ -1183,6 +1156,7 @@ export function ExploreScreen({
                 >
                   <DailyBiteCard
                     post={post}
+                    visualLoadMode={postIndex < 2 ? "feedProminent" : "feedDeferred"}
                     canManage={myOwnedDailyPostIds.has(post.id)}
                     canSayHi={!myOwnedDailyPostIds.has(post.id)}
                     liked={Boolean(likedPosts[post.id])}
@@ -1210,7 +1184,7 @@ export function ExploreScreen({
           )
         ) : sortedExperiences.length ? (
           <div className="mt-6 space-y-5">
-            {sortedExperiences.map((experience) => (
+            {sortedExperiences.map((experience, inviteIdx) => (
               <div
                 key={experience.id}
                 className="invite-experience-card rounded-[26px] bg-white/60 p-0 shadow-[0_18px_55px_rgba(0,0,0,0.06)]"
@@ -1220,6 +1194,8 @@ export function ExploreScreen({
                     <img
                       src={experience.coverPhotoUrl}
                       alt={experience.title}
+                      loading={inviteIdx < 2 ? "eager" : "lazy"}
+                      decoding="async"
                       className="h-44 w-full object-cover"
                     />
                   ) : (
@@ -1236,7 +1212,13 @@ export function ExploreScreen({
                       aria-label={`View ${experience.hostName} profile`}
                     >
                       {experience.hostAvatarUrl ? (
-                        <img src={experience.hostAvatarUrl} alt={experience.hostName} className="h-full w-full object-cover" />
+                        <img
+                          src={experience.hostAvatarUrl}
+                          alt={experience.hostName}
+                          loading={inviteIdx < 2 ? "eager" : "lazy"}
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
                       ) : null}
                     </button>
                     <div className="min-w-0 flex-1">
@@ -1360,6 +1342,7 @@ export function ExploreScreen({
 
 function DailyBiteCard({
   post,
+  visualLoadMode = "detail",
   canManage = false,
   canSayHi = true,
   allowLike = true,
@@ -1373,6 +1356,8 @@ function DailyBiteCard({
   onSayHiHost,
 }: {
   post: DailyBitePost;
+  /** Feed cards: defer off-screen images; first rows use `feedProminent` for LCP. */
+  visualLoadMode?: "detail" | "feedProminent" | "feedDeferred";
   canManage?: boolean;
   canSayHi?: boolean;
   /** When false (e.g. own post), like is disabled — cannot interact with own post likes from the card. */
@@ -1401,6 +1386,14 @@ function DailyBiteCard({
     : `daily-author:${post.authorName.trim().toLowerCase().replace(/\s+/g, "-")}`;
   /** Real Clerk users: use raw `user_*` so direct rooms are not stripped by `removeSyntheticChatRooms`. */
   const sayHiHostId = clerkHostId.startsWith("user_") ? clerkHostId : normalizedHostId;
+
+  const authorAvatarLoading: "eager" | "lazy" =
+    visualLoadMode === "feedDeferred" ? "lazy" : "eager";
+  const dailyPhotoLoading = (photoIndex: number): "eager" | "lazy" => {
+    if (visualLoadMode === "detail") return "eager";
+    if (visualLoadMode === "feedDeferred") return "lazy";
+    return photoIndex === 0 ? "eager" : "lazy";
+  };
 
   useEffect(() => {
     if (!postMenuOpen) return;
@@ -1432,7 +1425,13 @@ function DailyBiteCard({
             aria-label={canOpenAuthorProfile ? t("profilePreview.viewProfileAria", { name: post.authorName }) : undefined}
           >
             {displayAuthorAvatar ? (
-              <img src={displayAuthorAvatar} alt="" className="h-full w-full object-cover" />
+              <img
+                src={displayAuthorAvatar}
+                alt=""
+                loading={authorAvatarLoading}
+                decoding="async"
+                className="h-full w-full object-cover"
+              />
             ) : null}
           </button>
           <div className="min-w-0 flex-1">
@@ -1528,7 +1527,13 @@ function DailyBiteCard({
         <div className="mt-3 grid grid-cols-3 gap-2">
           {post.photoUrls.slice(0, 6).map((url, idx) => (
             <div key={`${post.id}-photo-${idx}`} className="overflow-hidden rounded-xl border border-[#EDD5C0] bg-white">
-              <img src={url} alt={`${post.authorName} daily photo ${idx + 1}`} className="h-24 w-full object-cover" />
+              <img
+                src={url}
+                alt={`${post.authorName} daily photo ${idx + 1}`}
+                loading={dailyPhotoLoading(idx)}
+                decoding="async"
+                className="h-24 w-full object-cover"
+              />
             </div>
           ))}
         </div>
@@ -1842,6 +1847,7 @@ function DailyBiteCommentsSection({
           )
           .subscribe();
         removeChannel = () => {
+          void channel.unsubscribe();
           void supabase.removeChannel(channel);
         };
       } catch {

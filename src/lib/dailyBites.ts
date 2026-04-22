@@ -13,6 +13,20 @@ export async function hasLikedPost(postId: string, userId: string, token: string
   return Boolean(data);
 }
 
+export async function fetchLikedPostIds(postIds: string[], userId: string, token: string): Promise<Set<string>> {
+  const unique = [...new Set(postIds.map((id) => id.trim()).filter(Boolean))];
+  if (!unique.length) return new Set();
+  const supabase = getSupabaseClient(token);
+  if (!supabase) return new Set();
+  const { data, error } = await supabase
+    .from("post_likes")
+    .select("post_id")
+    .eq("user_id", userId)
+    .in("post_id", unique);
+  if (error) throw error;
+  return new Set((data ?? []).map((row: { post_id: string }) => row.post_id));
+}
+
 export async function togglePostLike(postId: string, userId: string, token: string): Promise<{ liked: boolean }> {
   const supabase = getSupabaseClient(token);
   if (!supabase) {

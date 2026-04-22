@@ -24,6 +24,7 @@ export type ChatMessageRecord = {
 
 const ROOMS_KEY = "inbite:chat:rooms:v1";
 const MESSAGES_KEY = "inbite:chat:messages:v1";
+let messagesRemoteDisabled = false;
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -59,6 +60,27 @@ function newMessageUuid() {
     return crypto.randomUUID();
   }
   return createId("msg");
+}
+
+function isUuid(value: string): boolean {
+  const v = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+function extractGroupUuid(roomId: string): string | null {
+  if (!roomId.startsWith("group:")) return null;
+  const raw = roomId.slice("group:".length).trim();
+  return isUuid(raw) ? raw : null;
+}
+
+function isRetryableSupabaseError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return true;
+  const e = error as { code?: string; status?: number; message?: string };
+  if (e.code === "22P02") return false;
+  if (e.status === 400 || e.status === 404) return false;
+  const msg = (e.message ?? "").toLowerCase();
+  if (msg.includes("22p02") || msg.includes("invalid input syntax for type uuid")) return false;
+  return true;
 }
 
 export function listChatRooms(): ChatRoomRecord[] {
@@ -171,6 +193,9 @@ async function syncSupabaseRoomAndMessage(args: {
 }) {
   const supabase = getSupabaseClient(args.accessToken);
   if (!supabase) return;
+  if (messagesRemoteDisabled) return;
+  const remoteRoomId = extractGroupUuid(args.roomId);
+  if (!remoteRoomId || !isUuid(args.senderId) || !isUuid(args.receiverId)) return;
   const iso = nowIso();
   const peers = parseDirectRoomPeers(args.roomId);
   const participant_clerk_ids = peers
@@ -178,7 +203,7 @@ async function syncSupabaseRoomAndMessage(args: {
     : [args.senderId, args.receiverId].filter((id) => id && id !== "group" && id !== "host");
   const { error: roomErr } = await supabase.from("chat_rooms").upsert(
     {
-      id: args.roomId,
+      id: remoteRoomId,
       created_at: iso,
       updated_at: iso,
       participant_clerk_ids,
@@ -187,24 +212,28 @@ async function syncSupabaseRoomAndMessage(args: {
   );
   if (roomErr) {
     const { error: legacyErr } = await supabase.from("chat_rooms").upsert(
-      { id: args.roomId, created_at: iso, updated_at: iso },
+      { id: remoteRoomId, created_at: iso, updated_at: iso },
       { onConflict: "id" },
     );
     if (legacyErr) {
       console.warn("[chat] chat_rooms upsert", roomErr, legacyErr);
+      if (!isRetryableSupabaseError(legacyErr)) messagesRemoteDisabled = true;
       return;
     }
   }
   const { error: msgErr } = await supabase.from("messages").insert({
     id: args.messageId,
-    room_id: args.roomId,
+    room_id: remoteRoomId,
     sender_id: args.senderId,
     receiver_id: args.receiverId,
     content: args.content,
     created_at: iso,
     kind: args.kind ?? null,
   });
-  if (msgErr) console.warn("[chat] messages insert", msgErr);
+  if (msgErr) {
+    console.warn("[chat] messages insert", msgErr);
+    if (!isRetryableSupabaseError(msgErr)) messagesRemoteDisabled = true;
+  }
 }
 
 export async function startSayHiChat({
@@ -416,14 +445,18 @@ export async function fetchRemoteMessagesForRoom(
 ): Promise<ChatMessageRecord[]> {
   const supabase = getSupabaseClient(accessToken);
   if (!supabase) return [];
+  if (messagesRemoteDisabled) return [];
+  const remoteRoomId = extractGroupUuid(roomId);
+  if (!remoteRoomId) return [];
   const { data, error } = await supabase
     .from("messages")
     .select("id, room_id, sender_id, receiver_id, content, kind, created_at")
-    .eq("room_id", roomId)
+    .eq("room_id", remoteRoomId)
     .order("created_at", { ascending: true })
     .limit(limit);
   if (error) {
     console.warn("[chat] fetchRemoteMessagesForRoom", error);
+    if (!isRetryableSupabaseError(error)) messagesRemoteDisabled = true;
     return [];
   }
   const out: ChatMessageRecord[] = [];
@@ -448,6 +481,7 @@ function toRoomTitleFromId(roomId: string, myUserId: string) {
 export async function hydrateChatRoomsFromRemote(accessToken: string, myUserId: string): Promise<boolean> {
   const supabase = getSupabaseClient(accessToken);
   if (!supabase || !myUserId) return false;
+  if (messagesRemoteDisabled) return false;
   let changed = false;
 
   const addCandidateRooms = (ids: string[]) => {
@@ -513,6 +547,7 @@ export async function hydrateChatRoomsFromRemote(accessToken: string, myUserId: 
   }
 
   // Legacy fallback: derive room ids from messages table if participant array query fails.
+  if (!isUuid(myUserId)) return changed;
   const sent = await supabase
     .from("messages")
     .select("room_id, created_at")
@@ -525,6 +560,9 @@ export async function hydrateChatRoomsFromRemote(accessToken: string, myUserId: 
     .eq("receiver_id", myUserId)
     .order("created_at", { ascending: false })
     .limit(200);
+  if ((sent.error && !isRetryableSupabaseError(sent.error)) || (received.error && !isRetryableSupabaseError(received.error))) {
+    messagesRemoteDisabled = true;
+  }
   const ids = new Set<string>();
   for (const row of [...(sent.data ?? []), ...(received.data ?? [])] as Array<Record<string, unknown>>) {
     const roomId = typeof row.room_id === "string" ? row.room_id : "";
@@ -543,10 +581,13 @@ export async function upsertChatRoomParticipantsRemote(
   if (!filtered.length) return;
   const supabase = getSupabaseClient(accessToken);
   if (!supabase) return;
+  if (messagesRemoteDisabled) return;
+  const remoteRoomId = extractGroupUuid(roomId);
+  if (!remoteRoomId) return;
   const iso = nowIso();
   const { error: roomErr } = await supabase.from("chat_rooms").upsert(
     {
-      id: roomId,
+      id: remoteRoomId,
       created_at: iso,
       updated_at: iso,
       participant_clerk_ids: filtered,
@@ -555,10 +596,13 @@ export async function upsertChatRoomParticipantsRemote(
   );
   if (roomErr) {
     const { error: legacyErr } = await supabase.from("chat_rooms").upsert(
-      { id: roomId, created_at: iso, updated_at: iso },
+      { id: remoteRoomId, created_at: iso, updated_at: iso },
       { onConflict: "id" },
     );
-    if (legacyErr) console.warn("[chat] chat_rooms upsert", roomErr, legacyErr);
+    if (legacyErr) {
+      console.warn("[chat] chat_rooms upsert", roomErr, legacyErr);
+      if (!isRetryableSupabaseError(legacyErr)) messagesRemoteDisabled = true;
+    }
   }
 }
 
@@ -599,9 +643,13 @@ export async function joinGroupChatRoomRemote(
   if (!isGroupRoomId(roomId)) return null;
   const supabase = getSupabaseClient(accessToken);
   if (!supabase) return null;
-  const { data, error } = await supabase.rpc("join_group_chat_room", { p_room_id: roomId });
+  if (messagesRemoteDisabled) return null;
+  const remoteRoomId = extractGroupUuid(roomId);
+  if (!remoteRoomId) return null;
+  const { data, error } = await supabase.rpc("join_group_chat_room", { p_room_id: remoteRoomId });
   if (error) {
     console.warn("[chat] join_group_chat_room", error);
+    if (!isRetryableSupabaseError(error)) messagesRemoteDisabled = true;
     return null;
   }
   if (data == null || typeof data !== "object") return null;
@@ -617,12 +665,18 @@ export async function fetchGroupChatParticipantsRemote(
   if (!isGroupRoomId(roomId)) return null;
   const supabase = getSupabaseClient(accessToken);
   if (!supabase) return null;
+  if (messagesRemoteDisabled) return null;
+  const remoteRoomId = extractGroupUuid(roomId);
+  if (!remoteRoomId) return null;
   const { data, error } = await supabase
     .from("chat_rooms")
     .select("participant_clerk_ids")
-    .eq("id", roomId)
+    .eq("id", remoteRoomId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data) {
+    if (error && !isRetryableSupabaseError(error)) messagesRemoteDisabled = true;
+    return null;
+  }
   const raw = (data as { participant_clerk_ids?: unknown }).participant_clerk_ids;
   if (!Array.isArray(raw)) return null;
   return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
@@ -642,6 +696,9 @@ export async function syncChatMessageToSupabase(args: {
 }) {
   const supabase = getSupabaseClient(args.accessToken);
   if (!supabase) return;
+  if (messagesRemoteDisabled) return;
+  const remoteRoomId = extractGroupUuid(args.roomId);
+  if (!remoteRoomId || !isUuid(args.senderId) || !isUuid(args.receiverId)) return;
   const createdAt = args.createdAtISO ?? nowIso();
   const peers = parseDirectRoomPeers(args.roomId);
   let participants: string[];
@@ -655,13 +712,16 @@ export async function syncChatMessageToSupabase(args: {
   await upsertChatRoomParticipantsRemote(args.roomId, participants, args.accessToken);
   const { error: msgErr } = await supabase.from("messages").insert({
     id: args.messageId,
-    room_id: args.roomId,
+    room_id: remoteRoomId,
     sender_id: args.senderId,
     receiver_id: args.receiverId,
     content: args.content,
     created_at: createdAt,
     kind: args.kind ?? null,
   });
-  if (msgErr) console.warn("[chat] messages insert", msgErr);
+  if (msgErr) {
+    console.warn("[chat] messages insert", msgErr);
+    if (!isRetryableSupabaseError(msgErr)) messagesRemoteDisabled = true;
+  }
 }
 

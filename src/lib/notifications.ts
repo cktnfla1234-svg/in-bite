@@ -16,6 +16,20 @@ export type AppNotification = {
 export type NotificationRealtimeEvent = "INSERT" | "UPDATE" | "DELETE";
 
 const NOTIFY_EVENT = "inbite-notifications-changed";
+const NOTIFICATIONS_REMOTE_ENABLED = false;
+let notificationsTableUnavailable = !NOTIFICATIONS_REMOTE_ENABLED;
+
+function disableNotificationsRemoteOnMissingTable(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string; details?: string };
+  const text = `${e.message ?? ""} ${e.details ?? ""}`.toLowerCase();
+  const missing =
+    e.code === "42P01" ||
+    text.includes("relation") && text.includes("notifications") && text.includes("does not exist") ||
+    text.includes("table") && text.includes("notifications") && text.includes("not found");
+  if (missing) notificationsTableUnavailable = true;
+  return missing;
+}
 
 function storageKey(clerkId: string) {
   return `inbite:notifications:v1:${clerkId}`;
@@ -62,10 +76,12 @@ export function markNotificationRead(clerkId: string, notificationId: string) {
 }
 
 export async function markNotificationReadRemote(token: string, notificationId: string) {
+  if (notificationsTableUnavailable) return;
   try {
     const supabase = getSupabaseClient(token);
     if (!supabase) return;
-    await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
+    const { error } = await supabase.from("notifications").update({ read: true }).eq("id", notificationId);
+    if (error) disableNotificationsRemoteOnMissingTable(error);
   } catch {
     // Row may exist only locally (demo id) or table missing.
   }
@@ -97,10 +113,11 @@ export function removeDemoNotifications(clerkId: string) {
 }
 
 export async function insertNotificationRemote(token: string, row: Omit<AppNotification, "id" | "read" | "created_at">) {
+  if (notificationsTableUnavailable) return;
   try {
     const supabase = getSupabaseClient(token);
     if (!supabase) return;
-    await supabase.from("notifications").insert({
+    const { error } = await supabase.from("notifications").insert({
       type: row.type,
       actor_id: row.actor_id,
       target_id: row.target_id,
@@ -109,12 +126,14 @@ export async function insertNotificationRemote(token: string, row: Omit<AppNotif
       comment_id: row.comment_id ?? null,
       read: false,
     });
+    if (error) disableNotificationsRemoteOnMissingTable(error);
   } catch {
     // Table may not exist yet in dev — local feed still works.
   }
 }
 
 export async function mergeRemoteNotifications(clerkId: string, token: string) {
+  if (notificationsTableUnavailable) return;
   try {
     const supabase = getSupabaseClient(token);
     if (!supabase) return;
@@ -124,7 +143,11 @@ export async function mergeRemoteNotifications(clerkId: string, token: string) {
       .eq("target_id", clerkId)
       .order("created_at", { ascending: false })
       .limit(80);
-    if (error || !data?.length) return;
+    if (error) {
+      disableNotificationsRemoteOnMissingTable(error);
+      return;
+    }
+    if (!data?.length) return;
     const local = readLocal(clerkId);
     const byKey = new Map(local.map((n) => [n.id, n]));
     for (const r of data as AppNotification[]) {
@@ -173,6 +196,7 @@ export function subscribeNotificationsRealtime(
   onChange: () => void,
   onRealtimeEvent?: (eventType: NotificationRealtimeEvent, notification: AppNotification | null) => void,
 ): () => void {
+  if (notificationsTableUnavailable) return () => {};
   const supabase = getSupabaseClient(token);
   if (!supabase) return () => {};
   const channel = supabase
@@ -201,9 +225,14 @@ export function subscribeNotificationsRealtime(
         onChange();
       },
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR") {
+        notificationsTableUnavailable = true;
+      }
+    });
 
   return () => {
+    void channel.unsubscribe();
     void supabase.removeChannel(channel);
   };
 }

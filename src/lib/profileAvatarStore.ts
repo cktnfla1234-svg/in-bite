@@ -68,6 +68,7 @@ export async function subscribeProfileAvatarRealtime(
     .subscribe();
 
   return () => {
+    void channel.unsubscribe();
     void supabase.removeChannel(channel);
   };
 }

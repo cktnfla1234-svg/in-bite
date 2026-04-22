@@ -138,6 +138,16 @@ export default function AppShell({
   const { t } = useTranslation("common");
   const { user } = useUser();
   const tabScrollRef = useRef<HTMLDivElement | null>(null);
+  const getSupabaseTokenRef = useRef(getSupabaseToken);
+
+  useEffect(() => {
+    getSupabaseTokenRef.current = getSupabaseToken;
+  }, [getSupabaseToken]);
+
+  const getSupabaseTokenSafe = useCallback(async () => {
+    const fn = getSupabaseTokenRef.current;
+    return fn ? fn() : null;
+  }, []);
 
   useEffect(() => {
     // #region agent log
@@ -271,17 +281,17 @@ export default function AppShell({
   }, [welcomeClerkUserId]);
 
   useEffect(() => {
-    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseToken) return;
+    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseTokenRef.current) return;
     void (async () => {
       try {
-        const token = await getSupabaseToken();
+        const token = await getSupabaseTokenSafe();
         if (token) await mergeRemoteNotifications(welcomeClerkUserId, token);
         setActivityTick((t) => t + 1);
       } catch {
         // ignore
       }
     })();
-  }, [getSupabaseToken, isSignedIn, welcomeClerkUserId]);
+  }, [getSupabaseTokenSafe, isSignedIn, welcomeClerkUserId]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
@@ -312,11 +322,11 @@ export default function AppShell({
   }, [navigate]);
 
   useEffect(() => {
-    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseToken) return;
+    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseTokenRef.current) return;
     let cancelled = false;
     void (async () => {
       try {
-        const token = await getSupabaseToken();
+        const token = await getSupabaseTokenSafe();
         if (!token || cancelled) return;
         await subscribeWebPush(token, welcomeClerkUserId);
       } catch {
@@ -326,15 +336,15 @@ export default function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [getSupabaseToken, isSignedIn, welcomeClerkUserId]);
+  }, [getSupabaseTokenSafe, isSignedIn, welcomeClerkUserId]);
 
   useEffect(() => {
-    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseToken) return;
+    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseTokenRef.current) return;
     let unsub: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
       try {
-        const token = await getSupabaseToken();
+        const token = await getSupabaseTokenSafe();
         if (!token || cancelled) return;
         unsub = subscribeNotificationsRealtime(
           welcomeClerkUserId,
@@ -365,14 +375,14 @@ export default function AppShell({
       cancelled = true;
       unsub?.();
     };
-  }, [getSupabaseToken, isSignedIn, welcomeClerkUserId]);
+  }, [getSupabaseTokenSafe, isSignedIn, welcomeClerkUserId]);
 
   useEffect(() => {
-    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseToken) return;
+    if (!isSignedIn || !welcomeClerkUserId || !getSupabaseTokenRef.current) return;
     let cancelled = false;
     void (async () => {
       try {
-        const token = await getSupabaseToken();
+        const token = await getSupabaseTokenSafe();
         if (!token || cancelled) return;
         const deviceToken = await getFcmDeviceToken();
         if (!deviceToken || cancelled) return;
@@ -384,7 +394,7 @@ export default function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [getSupabaseToken, isSignedIn, welcomeClerkUserId]);
+  }, [getSupabaseTokenSafe, isSignedIn, welcomeClerkUserId]);
 
   const activityUnreadCount = welcomeClerkUserId ? unreadNotificationCount(welcomeClerkUserId) : 0;
   const activityItems = useMemo(
@@ -403,9 +413,9 @@ export default function AppShell({
       if (welcomeClerkUserId) {
         markNotificationRead(welcomeClerkUserId, item.id);
         setActivityTick((t) => t + 1);
-        if (getSupabaseToken) {
+        if (getSupabaseTokenRef.current) {
           try {
-            const token = await getSupabaseToken();
+            const token = await getSupabaseTokenSafe();
             if (token) await markNotificationReadRemote(token, item.id);
           } catch {
             // ignore

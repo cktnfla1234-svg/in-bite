@@ -39,34 +39,34 @@ function buildSurimDemoInvites(ownerClerkId: string, ownerDisplayName: string): 
 
   const cafeBooks: LocalInvite = {
     id: SURIM_DEMO_INVITE_IDS[0],
-    title: "책 읽으며 카페 두 곳 투어 (강남 → 연남)",
+    title: "책 마시고 커피 읽을 사람🙋‍♀️",
     location: "Seoul, South Korea",
     city: "Seoul",
-    locationDetail: "강남역 1번 출구 · 연남동 골목",
+    locationDetail: "Sungsoo-dong",
     description:
-      "조용히 책 읽기 좋은 카페 두 곳을 옮겨 다니며 커피 한 잔씩 나눠요.\n첫 카페에서는 각자 읽고 싶은 책 한 권만 들고 오면 됩니다.\n두 번째 카페까지 걸으며 가볍게 수다도 나눠요. 초보 독서모임 환영!",
+      "좋아하는 작가나 책 선정해서 수다떨어요!\n책 읽고 이야기 할 사람이 없는 사람 '대''환''영'✨",
     primaryPhotoUrl:
       "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80",
     itinerary: [
       {
         time: "14:00",
-        title: "1카페 · 강남",
-        description: "에스프레소 베이스 커피와 창가 자리에서 1시간 독서.",
+        title: "첫번째, 카페 · Upside Coffee",
+        description: "시그니처 커피(해방촌 커피, 뚝섬 커피, 바나나 에스프레소 등)이 너무 맛있는 곳이에요! 너무 조용하지도, 시끄럽지도 않아서 얘기나누기 딱 좋아요!",
       },
       {
         time: "15:30",
-        title: "이동 · 지하철 2호선",
-        description: "합정 방향으로 이동 (약 25분).",
+        title: "두번째, 카페 · MaCoy Cafe",
+        description: "성수 제일 카푸치노 맛집.",
       },
       {
         time: "16:15",
-        title: "2카페 · 연남",
-        description: "핸드드립 위주 카페. 디저트는 선택!",
+        title: "세번째, 카페 · Circle",
+        description: "(Optional) 연달아 커피가 힘들면 커피 or 티 선택가능한 곳으로 모십니다~~",
       },
     ],
     tasteTags: ["Cafe Hopping", "Art & Culture", "Slow Travel"],
-    includedOptions: ["coffee", "dessert", "transport"],
-    priceAmount: 35000,
+    includedOptions: ["coffee", "dessert", "tea"],
+    priceAmount: 15000,
     hostCurrency: "KRW",
     capacity: 4,
     meetupAt: meetup,
@@ -77,29 +77,29 @@ function buildSurimDemoInvites(ownerClerkId: string, ownerDisplayName: string): 
 
   const veganTour: LocalInvite = {
     id: SURIM_DEMO_INVITE_IDS[1],
-    title: "서울 비건 식당 & 카페 투어",
+    title: "비건은 힘이 세다🥑👊",
     location: "Seoul, South Korea",
     city: "Seoul",
-    locationDetail: "종로·성수 일대",
+    locationDetail: "Jongno-gu",
     description:
-      "비건 브런치 → 플랜트 베이스 디저트 카페까지 한 번에 즐기는 반나절 코스예요.\n알레르기·선호(무글루텐 등)는 미리 알려주세요. 사진 많이 찍어도 좋아요!",
+      "비건 브런치 → 플랜트 베이스 디저트 카페까지 한 번에 부수는 반나절 코스예요.\n알레르기·선호(무글루텐 등)는 미리 알려주세요!✨",
     primaryPhotoUrl:
       "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
     itinerary: [
       {
         time: "11:00",
         title: "비건 브런치",
-        description: "종로 근처 비건 레스토랑 — 샐러드·토스트·스무디 보울.",
+        description: "종로 오세계향 — 모든 한식이 비건 재료로 만들어짐!",
       },
       {
         time: "13:00",
-        title: "성수 비건 카페",
-        description: "케이크·쿠키는 모두 비건. 커피 or 티 선택.",
+        title: "종로 비건 카페",
+        description: "케이크·쿠키가 모두 비건. 우유 계란 없이 어케했노? 커피 or 티 선택.",
       },
     ],
     tasteTags: ["Vegetarian Friendly", "Street Food", "Cafe Hopping"],
     includedOptions: ["meal", "coffee", "dessert"],
-    priceAmount: 42000,
+    priceAmount: 0,
     hostCurrency: "KRW",
     capacity: 5,
     meetupAt: "2026-05-17T11:00:00.000Z",

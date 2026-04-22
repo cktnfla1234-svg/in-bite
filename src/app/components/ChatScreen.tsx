@@ -241,7 +241,10 @@ export function ChatScreen({
     return () => {
       cancelled = true;
       if (pollTimer != null) window.clearInterval(pollTimer);
-      if (supabaseClient && channel) void supabaseClient.removeChannel(channel);
+      if (supabaseClient && channel) {
+        void channel.unsubscribe();
+        void supabaseClient.removeChannel(channel);
+      }
     };
   }, [activeChatId, myUserId, getToken]);
 
