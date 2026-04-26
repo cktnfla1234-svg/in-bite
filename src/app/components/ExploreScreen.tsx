@@ -41,7 +41,6 @@ import { BITE_REWARD_COMMENT } from "@/lib/bitePolicy";
 import {
   applyBiteDeltaServer,
   fetchPreferenceProfile,
-  fetchPreferenceProfilesByClerkIds,
   type PreferenceProfileRow,
 } from "@/lib/profile";
 import { usePreferredCurrency } from "@/lib/PreferredCurrencyContext";
@@ -328,23 +327,25 @@ export function ExploreScreen({
       try {
         const rows = await fetchPublicInvites(160);
         if (!alive) return;
+        const nextHostPrefs: Record<string, PreferenceProfileRow> = {};
+        for (const row of rows) {
+          const clerkId = typeof row.clerk_id === "string" ? row.clerk_id.trim() : "";
+          if (!clerkId) continue;
+          if (!row.profiles) continue;
+          nextHostPrefs[clerkId] = {
+            clerk_id: clerkId,
+            bio: row.profiles.bio,
+            hobbies: row.profiles.hobbies,
+            moods: row.profiles.moods,
+          };
+        }
+        if (alive) setHostPrefsByClerkId(nextHostPrefs);
         if (user?.id) {
           const token = await getToken({ template: "supabase" });
           if (token && alive) {
-            const [me, hosts] = await Promise.all([
-              fetchPreferenceProfile(user.id, token),
-              fetchPreferenceProfilesByClerkIds(
-                rows.map((r) => (typeof r.clerk_id === "string" ? r.clerk_id : "")),
-                token,
-              ),
-            ]);
+            const me = await fetchPreferenceProfile(user.id, token);
             if (alive) {
               setViewerPrefs(me);
-              const nextMap: Record<string, PreferenceProfileRow> = {};
-              for (const row of hosts) {
-                if (row.clerk_id) nextMap[row.clerk_id] = row;
-              }
-              setHostPrefsByClerkId(nextMap);
             }
           }
         }
@@ -2314,12 +2315,13 @@ function mapLocalInviteToExperience(
   const ownerClerkId = invite.hostClerkId ?? myClerkId ?? undefined;
   const isOwnInvite = Boolean(ownerClerkId && myClerkId && ownerClerkId === myClerkId);
   const hostName =
-    invite.hostDisplayName ??
+    invite.hostDisplayName?.trim() ??
     (isOwnInvite ? myDisplayName || "Surim Cha" : "Host");
   const hostAvatarUrl =
-    invite.hostClerkId && invite.hostClerkId !== myClerkId
+    invite.hostAvatarUrl?.trim() ||
+    (invite.hostClerkId && invite.hostClerkId !== myClerkId
       ? getProfileAvatar(invite.hostClerkId) || undefined
-      : myAvatarUrl;
+      : myAvatarUrl);
   const hostPrefs = ownerClerkId ? hostPrefsByClerkId?.[ownerClerkId] : undefined;
 
   return {
@@ -2328,7 +2330,7 @@ function mapLocalInviteToExperience(
     hostName,
     hostClerkId: ownerClerkId,
     hostAvatarUrl,
-    hostBio: hostPrefs?.bio ?? undefined,
+    hostBio: invite.hostBio?.trim() || (hostPrefs?.bio ?? undefined),
     coverPhotoUrl: invite.primaryPhotoUrl,
     city,
     country,
@@ -2380,6 +2382,11 @@ function mapInviteRowToLocalInvite(row: InviteRow): LocalInvite {
     tasteTags: Array.isArray(row.taste_tags) ? row.taste_tags : [],
     includedOptions: Array.isArray(row.included_options) ? row.included_options : [],
     hostClerkId: typeof row.clerk_id === "string" ? row.clerk_id : undefined,
+    hostDisplayName: row.profiles?.display_name?.trim() || undefined,
+    hostAvatarUrl: row.profiles?.image_url?.trim() || undefined,
+    hostBio: row.profiles?.bio?.trim() || undefined,
+    hostHobbies: Array.isArray(row.profiles?.hobbies) ? row.profiles?.hobbies : [],
+    hostMoods: Array.isArray(row.profiles?.moods) ? row.profiles?.moods : [],
     priceAmount: Number(row.price_amount ?? 0),
     hostCurrency:
       typeof row.host_currency === "string" && isSelectableCurrency(row.host_currency)

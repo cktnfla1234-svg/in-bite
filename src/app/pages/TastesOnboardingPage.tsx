@@ -52,6 +52,10 @@ function toggleWithLimit(current: string[], value: string): { next: string[]; bl
   return { next: [...current, value], blocked: false };
 }
 
+function onboardingCacheKey(clerkId: string) {
+  return `inbite:onboarding:${clerkId}`;
+}
+
 export function TastesOnboardingPage() {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
@@ -132,6 +136,11 @@ export function TastesOnboardingPage() {
         },
         token,
       );
+      try {
+        window.localStorage.setItem(onboardingCacheKey(user.id), "1");
+      } catch {
+        // ignore storage errors
+      }
       navigate("/app", { replace: true });
     } catch (err) {
       const detail =

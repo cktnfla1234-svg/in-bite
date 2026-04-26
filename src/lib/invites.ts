@@ -38,6 +38,14 @@ export type InviteRow = {
   capacity: number | null;
   meetup_at: string | null;
   created_at: string;
+  profiles?: {
+    clerk_id: string;
+    display_name: string | null;
+    image_url: string | null;
+    bio: string | null;
+    hobbies: string[] | null;
+    moods: string[] | null;
+  } | null;
 };
 
 function getErrorText(err: unknown): string {
@@ -69,14 +77,39 @@ function omitKey<T extends Record<string, unknown>>(obj: T, key: string): Record
 
 function toInviteRowsWithOptionalDefaults(rows: unknown[]): InviteRow[] {
   return rows.map((row) => {
-    const r = row as Omit<InviteRow, "capacity" | "meetup_at"> & {
+    const r = row as Omit<InviteRow, "capacity" | "meetup_at" | "profiles"> & {
       capacity?: number | null;
       meetup_at?: string | null;
+      profiles?: InviteRow["profiles"];
     };
     return {
       ...r,
       capacity: typeof r.capacity === "number" ? r.capacity : null,
       meetup_at: typeof r.meetup_at === "string" ? r.meetup_at : null,
+      profiles:
+        r.profiles && typeof r.profiles === "object"
+          ? {
+              clerk_id: String((r.profiles as { clerk_id?: unknown }).clerk_id ?? ""),
+              display_name:
+                typeof (r.profiles as { display_name?: unknown }).display_name === "string"
+                  ? ((r.profiles as { display_name?: string }).display_name ?? null)
+                  : null,
+              image_url:
+                typeof (r.profiles as { image_url?: unknown }).image_url === "string"
+                  ? ((r.profiles as { image_url?: string }).image_url ?? null)
+                  : null,
+              bio:
+                typeof (r.profiles as { bio?: unknown }).bio === "string"
+                  ? ((r.profiles as { bio?: string }).bio ?? null)
+                  : null,
+              hobbies: Array.isArray((r.profiles as { hobbies?: unknown }).hobbies)
+                ? ((r.profiles as { hobbies?: string[] }).hobbies ?? null)
+                : null,
+              moods: Array.isArray((r.profiles as { moods?: unknown }).moods)
+                ? ((r.profiles as { moods?: string[] }).moods ?? null)
+                : null,
+            }
+          : null,
     };
   });
 }
@@ -194,6 +227,8 @@ export async function listOwnInvites(token: string): Promise<InviteRow[]> {
 
 const PUBLIC_INVITE_SELECT =
   "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, capacity, meetup_at, created_at";
+const PUBLIC_INVITE_SELECT_WITH_PROFILE =
+  "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, capacity, meetup_at, created_at, profiles:profiles!invites_clerk_id_fkey(clerk_id, display_name, image_url, bio, hobbies, moods)";
 
 /**
  * Public invite feed (anon Supabase client), same pattern as `fetchPublicDailyBites`.
@@ -208,7 +243,22 @@ export async function fetchPublicInvites(limit = 160): Promise<InviteRow[]> {
     "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, capacity, created_at";
   const selectNoOptional =
     "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, created_at";
-  const selectCandidates = [PUBLIC_INVITE_SELECT, selectNoCapacity, selectNoMeetup, selectNoOptional];
+  const selectWithProfileNoCapacity =
+    "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, meetup_at, created_at, profiles:profiles!invites_clerk_id_fkey(clerk_id, display_name, image_url, bio, hobbies, moods)";
+  const selectWithProfileNoMeetup =
+    "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, capacity, created_at, profiles:profiles!invites_clerk_id_fkey(clerk_id, display_name, image_url, bio, hobbies, moods)";
+  const selectWithProfileNoOptional =
+    "id, clerk_id, title, location, primary_photo_url, description, itinerary, taste_tags, included_options, price_amount, host_currency, created_at, profiles:profiles!invites_clerk_id_fkey(clerk_id, display_name, image_url, bio, hobbies, moods)";
+  const selectCandidates = [
+    PUBLIC_INVITE_SELECT_WITH_PROFILE,
+    selectWithProfileNoCapacity,
+    selectWithProfileNoMeetup,
+    selectWithProfileNoOptional,
+    PUBLIC_INVITE_SELECT,
+    selectNoCapacity,
+    selectNoMeetup,
+    selectNoOptional,
+  ];
   for (const select of selectCandidates) {
     const { data, error } = await supabase
       .from("invites")

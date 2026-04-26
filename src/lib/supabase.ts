@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let warnedMissingConfig = false;
-const clientCache = new Map<string, SupabaseClient>();
+let cachedClient: SupabaseClient | null = null;
+let currentAccessToken: string | null = null;
 
 export function isSupabaseConfigured(): boolean {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -27,19 +28,19 @@ export function getSupabaseClient(accessToken?: string): SupabaseClient | null {
     return null;
   }
 
-  const cacheKey = accessToken?.trim() ? `auth:${accessToken.trim()}` : "anon";
-  const cached = clientCache.get(cacheKey);
-  if (cached) return cached;
+  currentAccessToken = accessToken?.trim() || null;
 
-  const client = createClient(url, anonKey, {
-    global: accessToken
-      ? {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      : undefined,
-  });
-  clientCache.set(cacheKey, client);
-  return client;
+  if (!cachedClient) {
+    cachedClient = createClient(url, anonKey, {
+      auth: {
+        // Clerk handles user auth, so we do not need Supabase auth persistence.
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      accessToken: async () => currentAccessToken,
+    });
+  }
+
+  return cachedClient;
 }

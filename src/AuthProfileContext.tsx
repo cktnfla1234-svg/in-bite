@@ -58,9 +58,11 @@ export function AuthProfileProvider({ children }: { children: ReactNode }) {
     // Never block the first signed-in navigation on profile upsert/onboarding checks.
     // We hydrate quickly and sync in the background.
     setIsChecking(false);
+    let cachedDone = false;
     try {
       const cached = window.localStorage.getItem(onboardingCacheKey(user.id));
-      if (cached === "1") setOnboardingDone(true);
+      cachedDone = cached === "1";
+      setOnboardingDone(cachedDone);
     } catch {
       // ignore storage errors
     }
@@ -69,12 +71,12 @@ export function AuthProfileProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         if (!isSupabaseConfigured()) {
-          if (!cancelled) setOnboardingDone(false);
+          if (!cancelled) setOnboardingDone(cachedDone);
           return;
         }
         const token = await withTimeout(getToken({ template: "supabase" }), 12_000);
         if (!token) {
-          if (!cancelled) setOnboardingDone(false);
+          if (!cancelled) setOnboardingDone(cachedDone);
           return;
         }
         await withTimeout(upsertClerkProfile(user, token), 12_000);
@@ -88,7 +90,7 @@ export function AuthProfileProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch {
-        if (!cancelled) setOnboardingDone(false);
+        if (!cancelled) setOnboardingDone((prev) => prev || cachedDone);
       }
     })();
 

@@ -28,6 +28,10 @@ export type LocalInvite = {
   hostClerkId?: string;
   /** Shown on cards when hostClerkId is set (e.g. "Surim Cha"). */
   hostDisplayName?: string;
+  hostAvatarUrl?: string;
+  hostBio?: string;
+  hostHobbies?: string[];
+  hostMoods?: string[];
 };
 
 const LOCAL_INVITES_KEY = "inbite:local-invites";
@@ -65,6 +69,10 @@ function coerceLocalInvite(raw: Record<string, unknown>): LocalInvite | null {
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
     hostClerkId: typeof raw.hostClerkId === "string" ? raw.hostClerkId : undefined,
     hostDisplayName: typeof raw.hostDisplayName === "string" ? raw.hostDisplayName : undefined,
+    hostAvatarUrl: typeof raw.hostAvatarUrl === "string" ? raw.hostAvatarUrl : undefined,
+    hostBio: typeof raw.hostBio === "string" ? raw.hostBio : undefined,
+    hostHobbies: Array.isArray(raw.hostHobbies) ? (raw.hostHobbies as string[]) : [],
+    hostMoods: Array.isArray(raw.hostMoods) ? (raw.hostMoods as string[]) : [],
   };
 }
 
