@@ -1,5 +1,5 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "@/app/components/LanguageSwitcher";
@@ -56,19 +56,15 @@ function onboardingCacheKey(clerkId: string) {
   return `inbite:onboarding:${clerkId}`;
 }
 
-function isSupabaseJwtKeyMismatchError(detail: string): boolean {
-  const text = detail.toLowerCase();
-  return (
-    text.includes("no suitable key") ||
-    text.includes("wrong key type") ||
-    text.includes("invalid jwt") ||
-    text.includes("jwt") && text.includes("key")
-  );
-}
-
 export function TastesOnboardingPage() {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
+  const router = useMemo(
+    () => ({
+      push: (path: string) => navigate(path, { replace: true }),
+    }),
+    [navigate],
+  );
   const { user } = useUser();
   const { getToken } = useAuth();
   const thisYear = new Date().getFullYear();
@@ -125,7 +121,8 @@ export function TastesOnboardingPage() {
     setMoods(next);
   };
 
-  const handleSubmit = async () => {
+  const handleContinue = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!user || !canSubmit) return;
     setSaving(true);
     setError(null);
@@ -151,7 +148,7 @@ export function TastesOnboardingPage() {
       } catch {
         // ignore storage errors
       }
-      navigate("/app", { replace: true });
+      router.push("/explore");
     } catch (err) {
       const detail =
         typeof err === "object" && err !== null
@@ -160,20 +157,10 @@ export function TastesOnboardingPage() {
             : JSON.stringify(err)
           : String(err ?? "");
       console.error("Failed to save tastes", err);
-      if (user && isSupabaseJwtKeyMismatchError(detail)) {
-        // Do not block entry when Supabase JWT key integration is misconfigured.
-        // We keep onboarding locally completed so user can proceed.
-        try {
-          window.localStorage.setItem(onboardingCacheKey(user.id), "1");
-        } catch {
-          // ignore storage errors
-        }
-        navigate("/app", { replace: true });
-        return;
-      }
       setError(
         detail ? `Failed to save onboarding profile: ${detail}` : "Failed to save onboarding profile.",
       );
+      window.alert(detail ? `온보딩 저장 실패: ${detail}` : "온보딩 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -190,7 +177,7 @@ export function TastesOnboardingPage() {
           {t("onboarding.tastesTitle")}
         </h1>
         <p className="mt-3 text-[14px] leading-6 text-[#7C6A5E]">{t("onboarding.tastesSubtitle")}</p>
-        <div className="mt-6 space-y-5">
+        <form onSubmit={handleContinue} className="mt-6 space-y-5">
           <section className="rounded-2xl border border-[#EDD5C0] bg-white/70 p-4">
             <h2 className="text-[14px] font-semibold text-[#A0522D]">Age</h2>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -318,24 +305,22 @@ export function TastesOnboardingPage() {
               })}
             </div>
             </section>
-        </div>
+          {pickWarning ? <p className="mt-4 text-sm text-amber-700">{pickWarning}</p> : null}
+          {error ? <p className="mt-5 text-sm text-red-600">{error}</p> : null}
 
-        {pickWarning ? <p className="mt-4 text-sm text-amber-700">{pickWarning}</p> : null}
-        {error ? <p className="mt-5 text-sm text-red-600">{error}</p> : null}
-
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={handleSubmit}
-          className="mt-10 h-12 w-full rounded-2xl text-sm font-semibold transition-opacity"
-          style={{
-            background: "#A0522D",
-            color: "white",
-            opacity: canSubmit ? 1 : 0.45,
-          }}
-        >
-          {saving ? t("onboarding.saving") : t("onboarding.continue")}
-        </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="mt-10 h-12 w-full rounded-2xl text-sm font-semibold transition-opacity"
+            style={{
+              background: "#A0522D",
+              color: "white",
+              opacity: canSubmit ? 1 : 0.45,
+            }}
+          >
+            {saving ? t("onboarding.saving") : t("onboarding.continue")}
+          </button>
+        </form>
       </section>
     </main>
   );

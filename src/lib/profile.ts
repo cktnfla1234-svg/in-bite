@@ -278,9 +278,10 @@ export async function saveOnboardingProfile(
   if (!supabase) {
     throw new Error("Supabase is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
   }
-  const fullUpdate = await supabase
+  const { error } = await supabase
     .from("profiles")
-    .update({
+    .upsert({
+      clerk_id: clerkId,
       age: payload.age,
       gender: payload.gender,
       bio: payload.bio,
@@ -288,36 +289,9 @@ export async function saveOnboardingProfile(
       moods: payload.moods,
       onboarding_completed: true,
       updated_at: new Date().toISOString(),
-    })
-    .eq("clerk_id", clerkId);
+    }, { onConflict: "clerk_id" });
 
-  if (!fullUpdate.error) return;
-
-  const msg = String((fullUpdate.error as { message?: unknown }).message ?? "");
-  const details = String((fullUpdate.error as { details?: unknown }).details ?? "");
-  const hint = String((fullUpdate.error as { hint?: unknown }).hint ?? "");
-  const combined = `${msg} ${details} ${hint}`.toLowerCase();
-  const isSchemaMismatch =
-    /column|schema|does not exist|invalid input|wrong key type|no suitable key/.test(combined);
-
-  if (!isSchemaMismatch) {
-    throw fullUpdate.error;
-  }
-
-  // Backward-compatible fallback for older profiles schema.
-  const mergedTastes = [...payload.hobbies, ...payload.moods];
-  const fallback = await supabase
-    .from("profiles")
-    .update({
-      current_tastes: mergedTastes,
-      onboarding_completed: true,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("clerk_id", clerkId);
-
-  if (fallback.error) {
-    throw fallback.error;
-  }
+  if (error) throw error;
 }
 
 export type PreferenceProfileRow = {
