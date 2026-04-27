@@ -56,6 +56,16 @@ function onboardingCacheKey(clerkId: string) {
   return `inbite:onboarding:${clerkId}`;
 }
 
+function isSupabaseJwtKeyMismatchError(detail: string): boolean {
+  const text = detail.toLowerCase();
+  return (
+    text.includes("no suitable key") ||
+    text.includes("wrong key type") ||
+    text.includes("invalid jwt") ||
+    text.includes("jwt") && text.includes("key")
+  );
+}
+
 export function TastesOnboardingPage() {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
@@ -150,6 +160,17 @@ export function TastesOnboardingPage() {
             : JSON.stringify(err)
           : String(err ?? "");
       console.error("Failed to save tastes", err);
+      if (user && isSupabaseJwtKeyMismatchError(detail)) {
+        // Do not block entry when Supabase JWT key integration is misconfigured.
+        // We keep onboarding locally completed so user can proceed.
+        try {
+          window.localStorage.setItem(onboardingCacheKey(user.id), "1");
+        } catch {
+          // ignore storage errors
+        }
+        navigate("/app", { replace: true });
+        return;
+      }
       setError(
         detail ? `Failed to save onboarding profile: ${detail}` : "Failed to save onboarding profile.",
       );
